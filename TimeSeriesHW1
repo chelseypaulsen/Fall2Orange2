@@ -1,27 +1,37 @@
 
 
+
 read.csv('G-3549.csv')
 
 library(readxl)
+library(zoo)
+library(forecast)
+library(haven)
+library(fma)
+library(expsmooth)
+library(lmtest)
+library(seasonal)
+library(dplyr)
 library(ggplot2)
+
+
+##################################################  HW1  #################################################################
 
 wells <- read_xlsx("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx",3)
 dfwells <- data.frame(wells)
 
 
 #Aggrigating to the hour
-
 G3549 <- read_excel("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx", sheet = "Well", col_types = c("date", "date", "text", "numeric", "text", "numeric"))
 G3549$time <- substr(G3549$time,12,13)
 Grouped_Well <- aggregate(G3549$Corrected, list(G3549$date, G3549$time), mean)
 colnames(Grouped_Well) <- c('Date', 'Hour', 'Corrected_Mean')
 Ordered_Well <-  Grouped_Well[order(Grouped_Well$Date,Grouped_Well$Hour),]
+
 rownames(Ordered_Well) <- NULL
-#Ordered_Well$key <- paste(Ordered_Well$Date, Ordered_Well$hour)
 Ordered_Well$key <- substr(Ordered_Well$Date,1,10)
 mean(Ordered_Well$Corrected_Mean)
 sd(Ordered_Well$Corrected_Mean)
-
 
 
 
@@ -43,12 +53,7 @@ table(all_hours$constant)
 
 
 
-#Creating a few timplots for our data
-#This one removes missing values
-all_hours$all_date <- as.POSIXct(paste(all_hours$key," ", substr(all_hours$Hour,1,2),":00", sep = ""), format = "%Y-%m-%d %H:%M")
-ggplot(all_hours, aes(all_date, Corrected_Mean)) + geom_line() + xlab("Time (Years)") + ylab("Corrected Well Height (feet)")
-
-#This one does not remove missing values
+#Creating timplot for our data
 wellts_zoo <- zoo(Ordered_Well$Corrected_Mean, seq(from = as.POSIXct("2007-10-01 01:00"), 
                                                    to = as.POSIXct("2018-06-12 23:00"), by = "hour"))
 plot(wellts_zoo,xlab = "Time (Years)", ylab = "Corrected Well Height (feet)", main="Time Series Plot of Well 3549 Height")
