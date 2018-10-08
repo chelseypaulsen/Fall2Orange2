@@ -1,1 +1,46 @@
+libname ts 'C:\Users\Allison\Documents\Time Series';
+
+proc timeseries data=ts.wellnew plots=(series decomp) seasonality=8766;
+	var _0_624;
+run;
+
+
+
+data ts.wellnew2;
+set ts.wellnew;
+pi=constant("pi");
+s1=sin(2*pi*1*_n_/8760);
+c1=cos(2*pi*1*_n_/8760);
+s2=sin(2*pi*2*_n_/8760);
+c2=cos(2*pi*2*_n_/8760);
+s3=sin(2*pi*3*_n_/8760);
+c3=cos(2*pi*3*_n_/8760);
+s4=sin(2*pi*4*_n_/8760);
+c4=cos(2*pi*4*_n_/8760);
+s5=sin(2*pi*5*_n_/8760);
+c5=cos(2*pi*5*_n_/8760);
+s6=sin(2*pi*6*_n_/8760);
+c6=cos(2*pi*6*_n_/8760);
+s7=sin(2*pi*7*_n_/8760);
+c7=cos(2*pi*7*_n_/8760);
+s8=sin(2*pi*8*_n_/8760);
+c8=cos(2*pi*8*_n_/8760);
+s9=sin(2*pi*9*_n_/8760);
+c9=cos(2*pi*9*_n_/8760);
+s10=sin(2*pi*10*_n_/8760);
+c10=cos(2*pi*10*_n_/8760);
+*s11=sin(2*pi*11*_n_/8760);
+*c11=cos(2*pi*11*_n_/8760);
+*s12=sin(2*pi*12*_n_/8760);
+*c12=cos(2*pi*12*_n_/8760);
+run;
+
+*putting all sine/cosine fxn in crosscorr and input options;
+*looks similar to seasonal dummy variables;
+proc arima data=ts.wellnew2 plot=all;
+identify var=_0_624(8766) crosscorr=(s1 c1 s2 c2 s3 c3 s4 c4 s5 c5 s6 c6 s7 c7 s8 c8 s9 c9 s10 c10);* s11 c11 s12 c12);
+estimate p=4 q=4 input=(s1 c1 s2 c2 s3 c3 s4 c4 s5 c5 s6 c6 s7 c7 s8 c8 s9 c9 s10 c10);* s11 c11 s12 c12); 
+*forecast back=12 lead=12;
+run;
+quit;
 
