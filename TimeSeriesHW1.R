@@ -63,6 +63,16 @@ adf.test(decomp, alternative = "stationary", k = 0) #p=0.01, so reject null, so 
 # write.foreign(well_ft_impute, "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.txt", 
 #               "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.sas", package = "SAS")
 
-#fitting sine/cosine with fourier
-arima.2<-Arima(decomp,order=c(0,0,0),xreg=fourier(decomp,K=4))
+arima.2<-Arima(decomp,order=c(4,1,4),xreg=fourier(decomp,K=10))
 summary(arima.2)
+
+
+
+arima.2 %>%
+  forecast(xreg=fourier(decomp, K=10, h=8760)) %>%
+  autoplot() 
+
+
+
+Acf(arima.2$residuals, main = "", lag = 500)$acf
+Pacf(arima.2$residuals, main = "" ,lag = 500)$acf
