@@ -1,6 +1,6 @@
 # Restaurant Homework Assignment
 
-After analyzing the ordering patterns of your clientelle we have a few recomendations to help improve sales and the customer experience. Below is the chart of the entrees and their optimal wine pairing based off of what your customers ordered most frequently. The confidence you see below is how often an order containing that meat entree also contained that wine (i.e. a value of 0.50 means that 50% of the time that meat is ordered so too is that wine). The lift value is how many times more likely you are to see that wine purchase with that meat than you are to see that wine purchase in general.
+After analyzing the ordering patterns of your clientelle we have a few recomendations to help improve sales and the customer experience. Below is the chart of the entrees and their optimal wine pairing based off of what your customers ordered most frequently. The confidence you see below is how often an order containing that meat entree also contained that wine (i.e. a value of 0.50 means that 50% of the time that meat is ordered so too is that wine). The lift value is how many times more likely you are to see that wine purchase with that meat than you are to see that wine purchase in general. For instance, the Blackstone Merlot is 6.25 times for likely to be ordered with the Filet Mignon than the Blackstone Merlot is to be ordered in general
 
 | Meat | Wine | Confidence | Lift |
 |---- |---- |---- |---- |
