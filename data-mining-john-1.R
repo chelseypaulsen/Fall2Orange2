@@ -15,6 +15,7 @@ restaurant %>% select(order) %>% group_by(order) %>% summarise(n=n()) %>%
   arrange(desc(n))
 
 restaurant %>% group_by(orderNumber) %>% summarise(n=n()) %>% filter(n>3) %>% nrow()
+restaurant %>% group_by(orderNumber) %>% summarise(n=n()) %>% filter(n<3) %>% nrow()
 
 head(restaurant)
 # aggregate the orders onto single lines for association analysis
