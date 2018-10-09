@@ -108,17 +108,38 @@ adf.test(decomp, alternative = "stationary", k = 0) #p=0.01, so reject null, so 
 #export to do arima analysis in sas
 # write.foreign(well_ft_impute, "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.txt", 
 #               "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.sas", package = "SAS")
+yearly = 24*365.25
+monthly = 24*(365.25/12)
+tidaly = 24*(365.25/24.83)
+weekly = 24*(365.25/52)
+daily = 24
+biannual = 24*(365.25/2)
 
-arima.2<-Arima(decomp,order=c(4,1,4),xreg=fourier(decomp,K=10))
-summary(arima.2)
+#trying with two seasons
+seasons <- msts(decomp, start=1, seasonal.periods = c(yearly, monthly, biannual))
 
+#fitting sine/cosine with fourier
+arima.3<-Arima(seasons,order=c(4,1,6), xreg=fourier(seasons,K=c(2,2,2)))
+summary(arima.3)
 
+#autoplot of focasted data
+#arima.3 %>%
+ # forecast(xreg=fourier(seasons, K=5, h=8760)) %>%
+  #autoplot() 
 
-arima.2 %>%
-  forecast(xreg=fourier(decomp, K=10, h=8760)) %>%
-  autoplot() 
+#acf and pacf plots
+acf(arima.3$residuals)
+pacf(arima.3$residuals)
 
+#White noise plots
+White.LB <- rep(NA, 10)
+for(i in 1:10){
+  White.LB[i] <- Box.test(arima.3$residuals, lag = i, type = "Ljung", fitdf = 4)$p.value
+}
+#fitdf has to equal the highest ar or ma term
 
+White.LB <- pmin(White.LB, 0.2)
+barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab = "Lags", ylim = c(0, 0.2))
+abline(h = 0.01, lty = "dashed", col = "black")
+abline(h = 0.05, lty = "dashed", col = "black")
 
-Acf(arima.2$residuals, main = "", lag = 500)$acf
-Pacf(arima.2$residuals, main = "" ,lag = 500)$acf
