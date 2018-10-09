@@ -23,6 +23,8 @@ restaurant.wide <- aggregate(order~orderNumber,
 restaurant.wide <- data.frame(ordernumber=restaurant.wide$orderNumber,
                               order=restaurant.wide$order)
 
+restaurant.wide %>% group_by(order) %>% summarise(n=n()) %>% arrange(desc(n)) %>% head()
+
 typeof(restaurant.wide)
 # write the new wide dataframe to a csv
 write.table(restaurant.wide,
@@ -45,8 +47,8 @@ summary(orders)
 
 inspect(orders[1:10])
 
-rules <- apriori(orders, parameter = list(support=0.006, confidence=0.25, minlen=2))
+rules <- apriori(orders, parameter = list(support=0.05, confidence=0.25, minlen=2))
 summary(rules)
 
-inspect(sort(rules,by='lift')[1:10])
+inspect(sort(rules,by='lift')[1:20])
 
