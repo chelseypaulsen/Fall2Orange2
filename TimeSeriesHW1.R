@@ -55,6 +55,52 @@ decomp <- ts(well_ft_impute, freq=8760)
 new <- stl(decomp, s.window = 7)
 plot(new)
 
+#checking various seasonal components
+#checking yearly seasons  (check)
+decomp <- ts(well_ft_impute, freq=8766)
+new <- stl(decomp, s.window = 7)
+plot(new)
+#yearly seasons present
+
+#6months
+decomp2 <- ts(well_ft_impute, freq=4383)
+new <- stl(decomp2, s.window = 7)
+plot(new)
+#6 month seasons present
+
+#checking for monthly seasonal component (29.5 days-based on lunar calendar)
+well_mth <- ts(well_ft_impute[1:4248,]) #truncating to view more easily
+decomp_mth <- ts(well_mth, freq=708)
+new_mth <- stl(decomp_mth, s.window=7)
+plot(new_mth)
+#monthly season present
+
+#checking for weekly seasonal component
+well_wk <- ts(well_ft_impute[1:1000,])
+decomp_wk <- ts(well_wk, freq=168)
+new_wk <- stl(decomp_wk, s.window=7)
+plot(new_wk)
+#no weekly season
+
+#checking for daily seasonal component
+well_day <- ts(well_ft_impute[1:480,])
+decomp_day <- ts(well_day, freq=24)
+new_day <- stl(decomp_day, s.window=7)
+plot(new_day)
+#no daily season 
+
+#checking lunar season
+well_lun <- ts(well_ft_impute[1:480,])
+decomp_lun <- ts(well_lun, freq=27.3)
+new_lun <- stl(decomp_lun, s.window=7)
+plot(new_lun)
+#no lunar season
+
+#checking tidal season
+well_tide  <- ts(well_ft_impute[1:480,])
+decomp_tide <- ts(well_tide, freq=12.5)
+new_tide <- stl(decomp_tide, s.window=7)
+plot(new_tide)
 
 #ADF test- deterministic/stochastic seasons? 
 adf.test(decomp, alternative = "stationary", k = 0) #p=0.01, so reject null, so deterministic seasonal
