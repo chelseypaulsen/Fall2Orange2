@@ -14,6 +14,8 @@ restaurant %>% filter(type=='Side') %>% group_by(order) %>% summarise(n=n())
 restaurant %>% select(order) %>% group_by(order) %>% summarise(n=n()) %>%
   arrange(desc(n))
 
+restaurant %>% group_by(orderNumber) %>% summarise(n=n()) %>% filter(n>3) %>% nrow()
+
 head(restaurant)
 # aggregate the orders onto single lines for association analysis
 restaurant.wide <- aggregate(order~orderNumber,
@@ -52,3 +54,8 @@ summary(rules)
 
 inspect(sort(rules,by='lift')[1:20])
 
+
+rules2 <- apriori(orders, parameter = list(support=0.006, confidence=0.25, minlen=2))
+summary(rules2)
+
+inspect(sort(rules2,by='lift')[1:20])
