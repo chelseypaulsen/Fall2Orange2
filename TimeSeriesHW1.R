@@ -15,7 +15,8 @@ library(foreign)
 
 ##################################################  HW1  #################################################################
 
-well<- read_xlsx("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx",3)
+#well<- read_xlsx("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx",3)
+well<- read_xlsx("C:\\Users\\Steven\\Documents\\MSA\\Analytics Foundations\\lab and hw\\Time Series\\G-3549.xlsx",3)
 well_df <- data.frame(well)
 
 well_df_clean <- mutate(well_df, Datetime=date(date))  # adds date to datetime
@@ -46,7 +47,6 @@ well_ft <- read.zoo(df)
 # Impute missing values (fill in well_ft NAs)
 well_ft_impute <- na.approx(well_ft)
 
-
 #making time series plots
 plot(well_ft_impute,xlab = "Time (Years)", ylab = "Corrected Well Height (feet)", main="Time Series Plot of Well 3549 Height")
 
@@ -60,9 +60,19 @@ plot(new)
 adf.test(decomp, alternative = "stationary", k = 0) #p=0.01, so reject null, so deterministic seasonal
 
 #export to do arima analysis in sas
-write.foreign(well_ft_impute, "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.txt", 
-              "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.sas", package = "SAS")
+# write.foreign(well_ft_impute, "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.txt", 
+#               "C:\\Users\\Allison\\Documents\\Time Series\\well_clean.sas", package = "SAS")
 
-#fitting sine/cosine with fourier
-arima.2<-Arima(decomp,order=c(0,0,0),xreg=fourier(decomp,K=24))
+arima.2<-Arima(decomp,order=c(4,1,4),xreg=fourier(decomp,K=10))
 summary(arima.2)
+
+
+
+arima.2 %>%
+  forecast(xreg=fourier(decomp, K=10, h=8760)) %>%
+  autoplot() 
+
+
+
+Acf(arima.2$residuals, main = "", lag = 500)$acf
+Pacf(arima.2$residuals, main = "" ,lag = 500)$acf
