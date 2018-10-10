@@ -138,7 +138,7 @@ pacf(arima.3$residuals)
 #White noise plots
 White.LB <- rep(NA, 10)
 for(i in 1:10){
-  White.LB[i] <- Box.test(arima.3$residuals, lag = i, type = "Ljung", fitdf = 4)$p.value
+  White.LB[i] <- Box.test(arima.3$residuals, lag = i, type = "Ljung", fitdf = 6)$p.value
 }
 #fitdf has to equal the highest ar or ma term
 
@@ -184,3 +184,9 @@ plot(test_well, col="red", ylim=c(.1,.6))
 lines(f2$mean)
 lines(f2$upper[,2])
 lines(f2$lower[,2])
+
+
+
+#Summary for test data set
+arima.5<-Arima(test_well,order=c(5,0,5))
+summary(arima.5)
