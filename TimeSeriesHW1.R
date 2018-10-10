@@ -158,3 +158,29 @@ lines(f1$mean)
 lines(f1$upper[,2])
 lines(f1$lower[,2])
 
+########### Final Model??? ###################
+#plotting forecasted and test valus for last week
+arima.5<-Arima(train_well,order=c(5,0,5))
+summary(arima.5)
+f2=forecast(arima.5, h=168)#,xreg=fourier(test_seasons,K=c(2,2,2)))
+
+#acf and pacf plots
+acf(arima.5$residuals)
+pacf(arima.5$residuals)
+
+#White noise plots
+White.LB <- rep(NA, 10)
+for(i in 1:10){
+  White.LB[i] <- Box.test(arima.5$residuals, lag = i, type = "Ljung", fitdf = 5)$p.value
+}
+#fitdf has to equal the highest ar or ma term
+
+White.LB <- pmin(White.LB, 0.2)
+barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab = "Lags", ylim = c(0, 0.2))
+abline(h = 0.01, lty = "dashed", col = "black")
+abline(h = 0.05, lty = "dashed", col = "black")
+
+plot(test_well, col="red", ylim=c(.1,.6))
+lines(f2$mean)
+lines(f2$upper[,2])
+lines(f2$lower[,2])
