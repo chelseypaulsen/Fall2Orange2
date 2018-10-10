@@ -60,3 +60,7 @@ rules2 <- apriori(orders, parameter = list(support=0.006, confidence=0.25, minle
 summary(rules2)
 
 inspect(sort(rules2,by='lift')[1:20])
+
+df = DATAFRAME(rules2) #convert rules object to dataframe
+df = df[order(df$lift, decreasing = TRUE),] #orders dataframe by lift
+write.csv(df, file = 'results.csv') #converts dataframe to csv for output
