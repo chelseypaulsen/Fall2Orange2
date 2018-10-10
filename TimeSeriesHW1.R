@@ -180,7 +180,8 @@ barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab
 abline(h = 0.01, lty = "dashed", col = "black")
 abline(h = 0.05, lty = "dashed", col = "black")
 
-plot(test_well, col="red", ylim=c(.1,.6))
+plot(test_well, main="Forecasted and Actual Well Depth Values Over Time", xlab="Time",
+     ylab="Well Depth",col="red", ylim=c(.1,.6))
 lines(f2$mean)
 lines(f2$upper[,2])
 lines(f2$lower[,2])
