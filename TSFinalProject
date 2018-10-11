@@ -14,6 +14,7 @@ library(foreign)
 library(caschrono)
 library(TSA)
 library(quantmod)
+library(tidyr)
 
 ##################################################  HW1  #################################################################
 
@@ -39,17 +40,17 @@ tide_df <- data.frame(tide)
 tide_df_clean <- mutate(tide_df, Datetime=date(Date))  # adds date to datetime
 hour(tide_df_clean$Datetime) <- hour(tide_df_clean$Time) # Adds hour to datetime. Removes minutes from all hours
 tide_df_clean$Datetime <- as.POSIXct(tide_df_clean$Datetime)  # change time type of newly created Datetime
-tide_df_clean <- tide_df_clean %>%    # summarizes to hourly data and  
+tide_df_clean <- tide_df_clean %>%    # summarizes to hourly data and 
   group_by(Datetime) %>%              # averages Corrected values when multiple rows have same datetime
   summarise(Tide_ft=mean(Tide_ft)) %>%
   filter(Datetime >= ymd_hm('2007-10-01 01:00') &    # filters to dates defined in Simmons instructions
            Datetime <= ymd_hm('2018-06-12 23:00'))
 
-
 #rain data read in and clean
 rain<-read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",1)
 rain$date<- as.Date(rain$Date)
 rain$time<- format(as.POSIXct(rain$Date, "%H:%M:%S"))
+rain_df <-data.frame(rain)
 
 rain_df_clean <- mutate(rain_df, Datetime=date(date))  # adds date to datetime
 hour(rain_df_clean$Datetime) <- hour(rain_df_clean$time) # Adds hour to datetime. Removes minutes from all hours
@@ -67,10 +68,8 @@ datetimes <- as.data.frame(seq(ymd_hm('2007-10-01 01:00'), ymd_hm('2018-06-12 23
 names(datetimes) <- c('Datetime')
 df1 <- datetimes %>%
   left_join(well_df_clean, by='Datetime')
-
 df2 <- datetimes %>%
   left_join(tide_df_clean, by='Datetime')
-
 df3<-datetimes %>%
   left_join(rain_df_clean, by='Datetime') 
 
@@ -85,8 +84,16 @@ tide_ft_impute <- na.approx(tide_ft)
 rain_ft_impute <- na.approx(rain_ft)
 
 #Split into training and test
-train_well = well_ft_impute[1:93623,] #last 3 years
+train_well = well_ft_impute[1:93623,] 
 test_well = well_ft_impute[93624:93791,]
+
+train_tide = tide_ft_impute[1:93623,]
+test_tide = tide_ft_impute[93624:93791,]
+
+train_rain = rain_ft_impute[1:93623,]
+test_rain = rain_ft_impute[93624:93791,]
+
+
 
 arima1 = Arima(train_well, order=c(5,0,5))
 summary(arima1)
