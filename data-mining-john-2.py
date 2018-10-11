@@ -9,6 +9,7 @@ import pandas as pd
 import os
 from sklearn import tree
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 import graphviz
 
 os.chdir('C:\\Users\\johnb\\OneDrive\\Documents\\MSA\\Fall 2\\Data Mining\\HW2')
@@ -17,13 +18,21 @@ file = 'FFTSales.xls'
 
 sales = pd.read_excel(file)
 features = sales.drop('y', axis=1)
+# Select only the numeric variables (sklearn doesn't take strings)
 numeric_features = features.select_dtypes(exclude='object')
 
+# Below uses thier label encoding to turn the categorical variables into
+# numeric labels
+le = LabelEncoder()
+for col in features.columns:
+    if features[col].dtype == 'O':
+        features[col] = le.fit_transform(features[col])
+        
 boo = {'yes':1, 'no':0}
 
 target = sales['y'].map(boo)
 
-X_train, X_test, y_train, y_test = train_test_split(numeric_features, target,
+X_train, X_test, y_train, y_test = train_test_split(features, target,
                                                     test_size=0.3,
                                                     random_state=42)
 
@@ -35,7 +44,7 @@ clf = tree.DecisionTreeClassifier(max_depth=4)
 
 clf = clf.fit(X_train, y_train)
 
-dot_data = tree.export_graphviz(clf, out_file=None)
+dot_data = tree.export_graphviz(clf, out_file=None, feature_names=features.columns)
 
 graph = graphviz.Source(dot_data)
 graph.render('tree')
