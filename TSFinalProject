@@ -46,6 +46,21 @@ tide_df_clean <- tide_df_clean %>%    # summarizes to hourly data and
            Datetime <= ymd_hm('2018-06-12 23:00'))
 
 
+#rain data read in and clean
+rain<-read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",1)
+rain$date<- as.Date(rain$Date)
+rain$time<- format(as.POSIXct(rain$Date, "%H:%M:%S"))
+
+rain_df_clean <- mutate(rain_df, Datetime=date(date))  # adds date to datetime
+hour(rain_df_clean$Datetime) <- hour(rain_df_clean$time) # Adds hour to datetime. Removes minutes from all hours
+rain_df_clean$Datetime <- as.POSIXct(rain_df_clean$Datetime)  # change time type of newly created Datetime
+rain_df_clean <- rain_df_clean %>%    # summarizes to hourly data and  
+  group_by(Datetime) %>%              # averages Corrected values when multiple rows have same datetime
+  summarise(RAIN_FT=mean(RAIN_FT)) %>%
+  filter(Datetime >= ymd_hm('2007-10-01 01:00') &    # filters to dates defined in Simmons instructions
+           Datetime <= ymd_hm('2018-06-12 23:00'))
+
+
 # create df of hourly dates in daterange, then join well data
 # df has all hours, but some hours will have NA for well_ft
 datetimes <- as.data.frame(seq(ymd_hm('2007-10-01 01:00'), ymd_hm('2018-06-12 23:00'), by='1 hour'))
@@ -56,14 +71,18 @@ df1 <- datetimes %>%
 df2 <- datetimes %>%
   left_join(tide_df_clean, by='Datetime')
 
+df3<-datetimes %>%
+  left_join(rain_df_clean, by='Datetime') 
 
 # change to zoo object
 well_ft <- read.zoo(df1)
 tide_ft <- read.zoo(df2)
+rain_ft <- read.zoo(df3)
 
 # Impute missing values (fill in well_ft NAs)
 well_ft_impute <- na.approx(well_ft)
 tide_ft_impute <- na.approx(tide_ft)
+rain_ft_impute <- na.approx(rain_ft)
 
 #Split into training and test
 train_well = well_ft_impute[1:93623,] #last 3 years
