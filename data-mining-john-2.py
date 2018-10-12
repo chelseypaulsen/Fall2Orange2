@@ -8,9 +8,10 @@ Created on Thu Oct 11 13:06:24 2018
 import pandas as pd
 import os
 from sklearn import tree
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
 from sklearn.preprocessing import LabelEncoder
 import graphviz
+from time import time
 
 os.chdir('C:\\Users\\johnb\\OneDrive\\Documents\\MSA\\Fall 2\\Data Mining\\HW2')
 os.environ["PATH"] += os.pathsep + 'C:\\Users\\johnb\\Anaconda3\\Library\\bin\\graphviz\\'
@@ -54,16 +55,19 @@ test_score = clf.score(X_test, y_test)
 
 print(train_score, test_score)
 
+start = time()
 params = {'criterion':['gini','entropy'],
-          'max_depth':[2:7],
-          'min_samples_leaf':[5:50],
+          'max_depth':range(2,8),
+          'min_samples_leaf':[5,15,25,35,45,55],
           'splitter':['best','random']}
 
-random_search = RandomizedSearchCV(clf, param_distributions=params,
+random_search = GridSearchCV(clf, param_grid=params,
                                    cv=5)
 
 random_search.fit(X_train, y_train)
+print(time() - start)
+cv_res = pd.DataFrame(random_search.cv_results_)
 
-print(random_search.cv_results_)
+print(cv_res.head())
 
 
