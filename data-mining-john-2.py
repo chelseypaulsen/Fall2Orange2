@@ -8,7 +8,7 @@ Created on Thu Oct 11 13:06:24 2018
 import pandas as pd
 import os
 from sklearn import tree
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
 import graphviz
 
@@ -33,14 +33,14 @@ boo = {'yes':1, 'no':0}
 target = sales['y'].map(boo)
 
 X_train, X_test, y_train, y_test = train_test_split(features, target,
-                                                    test_size=0.3,
+                                                    test_size=0.1,
                                                     random_state=42)
 
 
 
 
 # Fit the classifier
-clf = tree.DecisionTreeClassifier(max_depth=4)
+clf = tree.DecisionTreeClassifier()
 
 clf = clf.fit(X_train, y_train)
 
@@ -53,3 +53,17 @@ train_score = clf.score(X_train, y_train)
 test_score = clf.score(X_test, y_test)
 
 print(train_score, test_score)
+
+params = {'criterion':['gini','entropy'],
+          'max_depth':[2:7],
+          'min_samples_leaf':[5:50],
+          'splitter':['best','random']}
+
+random_search = RandomizedSearchCV(clf, param_distributions=params,
+                                   cv=5)
+
+random_search.fit(X_train, y_train)
+
+print(random_search.cv_results_)
+
+
