@@ -21,7 +21,6 @@ sales = pd.read_excel(file)
 features = sales.drop('y', axis=1)
 # Select only the numeric variables (sklearn doesn't take strings)
 numeric_features = features.select_dtypes(exclude='object')
-
 # Below uses thier label encoding to turn the categorical variables into
 # numeric labels
 le = LabelEncoder()
@@ -32,6 +31,7 @@ for col in features.columns:
 boo = {'yes':1, 'no':0}
 
 target = sales['y'].map(boo)
+target.mean()
 
 X_train, X_test, y_train, y_test = train_test_split(features, target,
                                                     test_size=0.1,
@@ -66,8 +66,11 @@ random_search = GridSearchCV(clf, param_grid=params,
 
 random_search.fit(X_train, y_train)
 print(time() - start)
-cv_res = pd.DataFrame(random_search.cv_results_)
+cv_res = pd.DataFrame(random_search.cv_results_).sort_values(by=['rank_test_score'])
 
-print(cv_res.head())
+print(cv_res[['rank_test_score','mean_test_score']].head(10))
+
+cv_score = random_search.score(X_test, y_test)
+print(cv_score)
 
 
