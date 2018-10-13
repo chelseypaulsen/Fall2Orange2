@@ -68,15 +68,19 @@ datetimes <- as.data.frame(seq(ymd_hm('2007-10-01 01:00'), ymd_hm('2018-06-12 23
 names(datetimes) <- c('Datetime')
 df1 <- datetimes %>%
   left_join(well_df_clean, by='Datetime')
+
 df2 <- datetimes %>%
   left_join(tide_df_clean, by='Datetime')
+
 df3<-datetimes %>%
   left_join(rain_df_clean, by='Datetime') 
+
 
 # change to zoo object
 well_ft <- read.zoo(df1)
 tide_ft <- read.zoo(df2)
 rain_ft <- read.zoo(df3)
+
 
 # Impute missing values (fill in well_ft NAs)
 well_ft_impute <- na.approx(well_ft)
@@ -84,31 +88,44 @@ tide_ft_impute <- na.approx(tide_ft)
 rain_ft_impute <- na.approx(rain_ft)
 
 #Split into training and test
-train_well = well_ft_impute[1:93623,] 
+train_well = well_ft_impute[67325:93623,] #just using last 3 years to speed processing
 test_well = well_ft_impute[93624:93791,]
 
-train_tide = tide_ft_impute[1:93623,]
+train_tide = tide_ft_impute[67325:93623,]
 test_tide = tide_ft_impute[93624:93791,]
 
-train_rain = rain_ft_impute[1:93623,]
+train_rain = rain_ft_impute[67325:93623,]
 test_rain = rain_ft_impute[93624:93791,]
 
+plot(train_rain)
+plot(train_tide)
+plot(train_well)
+
+arima_well = Arima(train_well, order=c(5,0,5))
+summary(arima_well)
+ndiffs(arima_well$residuals)
 
 
-arima1 = Arima(train_well, order=c(5,0,5))
-summary(arima1)
+#running model with all vars--STILL LOOKING FOR BEST MODEL
+x.reg=cbind(train_rain)
+model2=Arima(train_well,order=c(2,0,0),xreg=x.reg)
+summary(model2)
+res.model2=model2$residuals
+plot(res.model2)
+ndiffs(res.model2)
 
-arima2 = Arima(test_well, order=c(5,0,5))
-summary(arima2)
-
+model3=Arima(train_well,order=c(5,0,5),seasonal=c(2,0,0),xreg=x.reg)
+summary(model3)
+model4=Arima(train_well,order=c(5,0,5),xreg=x.reg)
+summary(model4)
 #acf and pacf plots
-acf(arima1$residuals)
-pacf(arima1$residuals)
+acf(model3$residuals)
+pacf(model3$residuals)
 
 #White noise plots
 White.LB <- rep(NA, 20)
 for(i in 1:20){
-  White.LB[i] <- Box.test(arima1$residuals, lag = i, type = "Ljung", fitdf = 5)$p.value
+  White.LB[i] <- Box.test(model3$residuals, lag = i, type = "Ljung", fitdf = 5)$p.value
 }
 #fitdf has to equal the highest ar or ma term
 
@@ -128,5 +145,5 @@ lines(f1$upper[,2], col="blue")
 lines(f1$lower[,2], col="blue")
 
 
-#TS Project
+
 
