@@ -48,8 +48,8 @@ well_ft <- read.zoo(df)
 well_ft_impute <- na.approx(well_ft)
 
 #Split into training and test
-train_well = well_ft_impute[1:93623,]
-test_well = well_ft_impute[93624:93791,]
+train_well = well_ft_impute[1:93523,]
+test_well = well_ft_impute[93524:93791,]
 
 #making time series plots
 plot(well_ft_impute,xlab = "Time (Years)", ylab = "Corrected Well Height (feet)", main="Time Series Plot of Well 3549 Height")
@@ -162,7 +162,7 @@ lines(f1$lower[,2])
 #plotting forecasted and test valus for last week
 arima.5<-Arima(train_well,order=c(5,0,5))
 summary(arima.5)
-f2=forecast(arima.5, h=168)#,xreg=fourier(test_seasons,K=c(2,2,2)))
+f2=forecast(arima.5, h=268)#,xreg=fourier(test_seasons,K=c(2,2,2)))
 
 #acf and pacf plots
 acf(arima.5$residuals)
