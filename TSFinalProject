@@ -145,5 +145,37 @@ lines(f1$upper[,2], col="blue")
 lines(f1$lower[,2], col="blue")
 
 
+##################### possible final model? ##################################
 
+
+###########################################
+
+
+yearly = 24*365.25
+monthly = 24*(365.25/12)
+biannual = 24*(365.25/2)
+
+seasons <- msts(train_well, start=1, seasonal.periods = c(yearly))
+
+#fitting sine/cosine with fourier
+x.reg=cbind(train_rain, train_tide)
+model5<-Arima(seasons,order=c(12,1,12), xreg=fourier(seasons,K=c(1)))
+summary(model5)
+#acf and pacf plots
+acf(model5$residuals)
+pacf(model5$residuals)
+
+checkresiduals(model5)
+
+#White noise plots
+White.LB <- rep(NA, 300)
+for(i in 12:300){
+  White.LB[i] <- Box.test(model5$residuals, lag = i, type = "Ljung", fitdf = 26)$p.value
+}
+#fitdf has to equal the highest ar or ma term
+
+White.LB <- pmin(White.LB, 0.2)
+barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab = "Lags", ylim = c(0, 0.2))
+abline(h = 0.01, lty = "dashed", col = "black")
+abline(h = 0.05, lty = "dashed", col = "black")
 
