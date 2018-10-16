@@ -78,20 +78,34 @@ ui <- fluidPage(
   titlePanel('South Florida Well Visualization Dashboard'),
   
   sidebarLayout(
-    sidebarPanel('Inputs',
+    sidebarPanel('Options',
+                 selectInput('choice','What Do You Want to Do?', c('Explore','Predict'), selected='Explore'),
                  selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852'),
-                 selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
-                 selectInput('month_Input','Month',''),
-                 selectInput('day_Input','Day','')
+                 conditionalPanel(
+                   condition = 'input.choice == "Explore"',
+                    selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
+                    selectInput('month_Input','Month',''),
+                    selectInput('day_Input','Day','')),
+                 conditionalPanel(
+                   condition = 'input.choice == "Predict"',
+                   sliderInput('range_Input','Hours Predicted',0,168,c(1))
+                 )
                 ),
     mainPanel(
       h4('Timeseries Plot of Selected Well'),
       plotOutput('timeOutput'),
       br(),
-      h4('Well Heights on Selected Date'),
-      plotOutput('dateOutput'),
+      conditionalPanel(
+        condition = 'input.choice == "Explore"',
+          h4('Well Heights on Selected Date'),
+          plotOutput('dateOutput')),
+      br(),
+      conditionalPanel(
+        condition = 'input.choice == "Predict"',
+        h4('Well Prediction for Selected Well and Hours'),
+        plotOutput('predictOutput')),
       br())
-  )
+    )
 )
 
 server <- function(input,output,session){
