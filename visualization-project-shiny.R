@@ -61,16 +61,40 @@ for (well in wells){
   full_well_df$filled <- imputed
   print(sum(is.na(full_well_df$filled)))
   full_well_df <- full_well_df %>% select(datetime, filled)
-  names(full_well_df)[names(full_well_df) == 'filled'] <- paste('filled',gsub('-','',well),sep='_')
-  print(sum(is.na(full_well_df[paste('filled',gsub('-','',well),sep='_')])))
+  names(full_well_df)[names(full_well_df) == 'filled'] <- gsub('-','',well)
+  print(sum(is.na(full_well_df[gsub('-','',well)])))
   full_df <- full_df %>% left_join(full_well_df, by='datetime')
-  print(sum(is.na(full_df[paste('filled',gsub('-','',well),sep='_')])))
+  print(sum(is.na(full_df[gsub('-','',well)])))
   
   }
-head(full_df)
 
-ggplot(full_df, aes(x=datetime,y=filled_G1220_T)) +
-  geom_line()
+ui <- fluidPage(
+  
+  titlePanel('South Florida Well Visualization Dashboard'),
+  
+  sidebarLayout(
+    sidebarPanel('Inputs',
+                 selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852')
+                ),
+    mainPanel(
+      h4('Plot of Timeseries Data'),
+      plotOutput('timeOutput'),
+      br())
+  )
+)
 
-sum(is.na(full_df['filled_G1220_T']))
-full_df$datetime[1]
+server <- function(input,output){
+  reactive_data_well <- reactive({
+    full_df %>% select(datetime,input$well_Input)
+  })
+  
+  output$timeOutput <- renderPlot({
+    
+    ycol <- input$well_Input
+    
+    ggplot(reactive_data_well(), aes_string(x='datetime',y=ycol)) +
+      geom_line()
+  })
+}
+
+shinyApp(ui=ui, server=server)
