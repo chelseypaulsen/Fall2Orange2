@@ -68,17 +68,24 @@ for (well in wells){
   
   }
 
+unique(month((full_df %>% filter(year(datetime)=='2009'))$datetime))
+month(full_df$datetime)
 ui <- fluidPage(
   
   titlePanel('South Florida Well Visualization Dashboard'),
   
   sidebarLayout(
     sidebarPanel('Inputs',
-                 selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852')
+                 selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852'),
+                 selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
+                 uiOutput('month_Input')
                 ),
     mainPanel(
-      h4('Plot of Timeseries Data'),
+      h4('Timeseries Plot of Selected Well'),
       plotOutput('timeOutput'),
+      br(),
+      h4('Well Heights on Selected Date'),
+      plotOutput('dateOutput'),
       br())
   )
 )
@@ -88,12 +95,24 @@ server <- function(input,output){
     full_df %>% select(datetime,input$well_Input)
   })
   
+  reactive_data_time <- reactive({
+    full_df %>% filter(year(datetime) == input$year_Input) 
+  })
+  
+  output$month_Input <- renderUI({
+    selectInput('month','Month',unique(month((reactive_data_time())$datetime)),selected='1')
+  })
   output$timeOutput <- renderPlot({
     
     ycol <- input$well_Input
     
     ggplot(reactive_data_well(), aes_string(x='datetime',y=ycol)) +
       geom_line()
+  })
+  
+  output$dateOutput <- renderPlot({
+    
+    ggplot(reactive_data_time(), aes())
   })
 }
 
