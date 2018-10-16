@@ -191,3 +191,44 @@ lines(f2$lower[,2])
 #Summary for test data set
 arima.5<-Arima(test_well,order=c(5,0,5))
 summary(arima.5)
+
+#################################### Or this as our final model? #######################################
+
+yearly = 24*365.25
+monthly = 24*(365.25/12)
+biannual = 24*(365.25/2)
+
+seasons <- msts(train_well, start=1, seasonal.periods = c(yearly))
+
+#fitting sine/cosine with fourier
+model5<-Arima(seasons,order=c(12,1,12), xreg=fourier(seasons,K=c(1)))
+summary(model5)
+#acf and pacf plots
+acf(model5$residuals)
+pacf(model5$residuals)
+
+checkresiduals(model5)
+
+#White noise plots
+White.LB <- rep(NA, 20)
+for(i in 1:20){
+  White.LB[i] <- Box.test(model5$residuals, lag = i, type = "Ljung", fitdf = 1)$p.value
+}
+#fitdf has to equal the highest ar or ma term
+
+White.LB <- pmin(White.LB, 0.2)
+barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab = "Lags", ylim = c(0, 0.2))
+abline(h = 0.01, lty = "dashed", col = "black")
+abline(h = 0.05, lty = "dashed", col = "black")
+
+
+
+#plotting forecasted and test values for last week
+f1=forecast(arima5, h=168)
+
+plot(test_well, main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
+     ylab="Water Elevation (ft)",col="red", ylim=c(.1,.6))
+lines(f1$mean)
+lines(f1$upper[,2], col="blue")
+lines(f1$lower[,2], col="blue")
+
