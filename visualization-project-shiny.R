@@ -68,8 +68,11 @@ for (well in wells){
   
   }
 
-unique(month((full_df %>% filter(year(datetime)=='2009'))$datetime))
-month(full_df$datetime)
+full_df %>% filter(year(datetime) == '2009',month(datetime) == '10',
+                   day(datetime) == '25') %>%
+  summarise_all(funs(mean)) %>% select(-datetime) %>%
+  gather(well, depth)
+day(full_df$datetime)
 ui <- fluidPage(
   
   titlePanel('South Florida Well Visualization Dashboard'),
@@ -78,7 +81,8 @@ ui <- fluidPage(
     sidebarPanel('Inputs',
                  selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852'),
                  selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
-                 uiOutput('month_Input')
+                 selectInput('month_Input','Month',''),
+                 selectInput('day_Input','Day','')
                 ),
     mainPanel(
       h4('Timeseries Plot of Selected Well'),
@@ -90,18 +94,34 @@ ui <- fluidPage(
   )
 )
 
-server <- function(input,output){
+server <- function(input,output,session){
   reactive_data_well <- reactive({
     full_df %>% select(datetime,input$well_Input)
   })
   
-  reactive_data_time <- reactive({
+  reactive_data_year <- reactive({
     full_df %>% filter(year(datetime) == input$year_Input) 
   })
   
-  output$month_Input <- renderUI({
-    selectInput('month','Month',unique(month((reactive_data_time())$datetime)),selected='1')
+  observe({
+    updateSelectInput(session,'month_Input',
+                      choices=unique(month((reactive_data_year())$datetime)))
   })
+  
+    
+  observe({
+    if(input$month_Input == ''){
+      return()
+    }
+    else{
+      reactive_data_month <- reactive({(full_df %>%
+        filter(year(datetime) == input$year_Input) %>%
+        filter(month(datetime) == input$month_Input))})
+    updateSelectInput(session,'day_Input',
+                      choices=unique(day((reactive_data_month())$datetime)))
+  }
+    })
+
   output$timeOutput <- renderPlot({
     
     ycol <- input$well_Input
@@ -109,11 +129,24 @@ server <- function(input,output){
     ggplot(reactive_data_well(), aes_string(x='datetime',y=ycol)) +
       geom_line()
   })
-  
-  output$dateOutput <- renderPlot({
-    
-    ggplot(reactive_data_time(), aes())
+  observe({
+    if(input$month_Input == '' | input$day_Input == ''){
+      return()
+    }
+    else{
+      reactive_data_date <- reactive({(full_df %>% filter(year(datetime) == input$year_Input,
+                                               month(datetime) == input$month_Input,
+                                               day(datetime) == input$day_Input) %>%
+        summarise_all(funs(mean)) %>% select(-datetime) %>%
+        gather(well, depth))})
+      
+      output$dateOutput <- renderPlot({
+        ggplot(reactive_data_date(), aes_string(x='well',y='depth')) +
+          geom_col()
+      })
+    }
   })
+  
 }
 
 shinyApp(ui=ui, server=server)
