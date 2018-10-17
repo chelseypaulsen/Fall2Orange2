@@ -205,10 +205,10 @@ newx=cbind(t.f,r.f)
 final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) ##This is what is not working
 
 
-plot(test_well, main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
-     ylab="Water Elevation (ft)",col="red", ylim=c(.1,2))#this is not working
 
+plot(as.numeric(test_well), main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
+     ylab="Water Elevation (ft)",col="red", ylim=c(.1,2))
 
-lines(final.pred$mean)
-lines(final.pred$upper[,2], col="blue")
-lines(final.pred$lower[,2], col="blue")
+lines(as.numeric(final.pred$mean)) #ts objects on same scale
+lines(as.numeric(final.pred$upper[,2], col="blue"))
+lines(as.numeric(final.pred$lower[,2], col="blue"))
