@@ -190,19 +190,25 @@ rain_ft_impute <- na.approx(rain_ft)
 
 #making models for the x vars
 model.tide=auto.arima(tide_ft_impute)
+#summary(model.tide)#(5,1,1)
+#model.tide=Arima(tide_ft_impute,order=c(5,0,1))
 tide.future=forecast(model.tide,h=168)
 model.rain=auto.arima(rain_ft_impute)
+#summary(model.rain)#(3,0,2)
 rain.future=forecast(model.rain,h=168)
 
 t.f=tide.future$mean
 r.f=rain.future$mean
 
+seasons2 <- msts(test_well, start=1, seasonal.periods = c(yearly))
 newx=cbind(t.f,r.f)
-final.pred=forecast(model5,xreg=newx,h=168) ##This is what is not working
+final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) ##This is what is not working
 
 
 plot(test_well, main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
-     ylab="Water Elevation (ft)",col="red", ylim=c(.1,.6))
+     ylab="Water Elevation (ft)",col="red", ylim=c(.1,2))#this is not working
+
+
 lines(final.pred$mean)
 lines(final.pred$upper[,2], col="blue")
 lines(final.pred$lower[,2], col="blue")
