@@ -20,10 +20,14 @@ library(TSA)
 library(quantmod)
 library(imputeTS)
 
+# Set up the working directory and initialize the well list
+
 data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
 
 wells <- c('G-852','F-45','F-179','F-319','G-561_T','G-580A','G-860','G-1220_T',
            'G-1260_T','G-2147_T','G-2866_T','G-3549','PB-1680_T')
+
+# Create a sequence of dates and convert to dataframe to find missing dates in well data
 
 start <- ymd_h("2007/10/01 00", tz='UTC')
 end <- ymd_h("2018/06/12 23", tz='UTC')
@@ -32,6 +36,8 @@ hourseq <- seq(start,end, by='hours')
 full_df <- data.frame(datetime=hourseq)
 hourseqdf <- as.data.frame(hourseq)
 names(hourseqdf) <- c('datetime')
+
+# Read the excel files in and clean them
 
 for (well in wells){
   if (well == 'G-852'){
@@ -52,17 +58,21 @@ for (well in wells){
     filter(datetime >= ymd_hm('2007-10-01 01:00') &    # filters to dates defined in Simmons instructions
              datetime <= ymd_hm('2018-06-12 23:00'))
   well_df_clean <- well_df_clean %>% select(datetime,well_ft)
+  # Join the data onto the date sequence to find missing values
   full_well_df <- left_join(hourseqdf,well_df_clean,by='datetime')
   print(sum(is.na(full_well_df$well_ft)))
   print(well)
+  # Create the timeseries object and then impute missing values using imputeTS package
   startday <- as.numeric(strftime(full_well_df$datetime[1], format='%j'))
   timeseries <- ts(full_well_df$well_ft, start=c(2007,startday*24), frequency=(365.25*24))
   imputed <- na.seadec(timeseries, algorithm='locf')
   full_well_df$filled <- imputed
   print(sum(is.na(full_well_df$filled)))
   full_well_df <- full_well_df %>% select(datetime, filled)
+  # Rename the column to the well name
   names(full_well_df)[names(full_well_df) == 'filled'] <- gsub('-','',well)
   print(sum(is.na(full_well_df[gsub('-','',well)])))
+  # Join all the well columns together into one master dataframe
   full_df <- full_df %>% left_join(full_well_df, by='datetime')
   print(sum(is.na(full_df[gsub('-','',well)])))
   
@@ -74,9 +84,15 @@ full_df %>% filter(year(datetime) == '2009',month(datetime) == '10',
   gather(well, depth)
 day(full_df$datetime)
 
+###############################
+# Below is the shiny app code #
+###############################
+
 ui <- fluidPage(
-  
+  # The UI code
   titlePanel('South Florida Well Visualization Dashboard'),
+  
+  # Set up the conditional panels that are dependent on the user's first selection
   
   sidebarLayout(
     sidebarPanel('Options',
@@ -95,11 +111,11 @@ ui <- fluidPage(
                  )
                 ),
     mainPanel(
-      h4('Timeseries Plot of Selected Well'),
-      plotOutput('timeOutput'),
-      br(),
       conditionalPanel(
         condition = 'input.choice == "Explore"',
+          h4('Timeseries Plot of Selected Well'),
+          plotOutput('timeOutput'),
+          br(),
           h4('Well Heights on Selected Date'),
           plotOutput('dateOutput')),
       br(),
@@ -110,6 +126,8 @@ ui <- fluidPage(
       br())
     )
 )
+
+# Below is the server code for shiny
 
 server <- function(input,output,session){
   reactive_data_well <- reactive({
@@ -124,13 +142,14 @@ server <- function(input,output,session){
   reactive_data_year <- reactive({
     full_df %>% filter(year(datetime) == input$year_Input) 
   })
-  
+  # Need observe function to make the dropdown menu option reactive
   observe({
     updateSelectInput(session,'month_Input',
                       choices=unique(month((reactive_data_year())$datetime)))
   })
   
-    
+  # First allow for month input to not have a value to prevent error
+  # If it has a value, use it
   observe({
     if(input$month_Input == ''){
       return()
@@ -143,17 +162,18 @@ server <- function(input,output,session){
                       choices=unique(day((reactive_data_month())$datetime)))
   }
     })
-
+# Again use observe to allow the ggplot to have a variable number of lines in it
   observe({
-    
+    # This currently doesn't work
     if (length(input$well_check) >= 6){
       print('Please select no more than 5 wells at a time.')
       actual_inputs <- input$well_check[1:5]
     }
-    else{
+    else{ # Below the plot iterates over however many wells are selected and adds them to the graph
     output$timeOutput <- renderPlot({
     p <- ggplot(reactive_data_well(), aes_string(x='datetime'))
     i <- 1
+    # Need better colors
     cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
     for (selection in input$well_check){
@@ -164,6 +184,7 @@ server <- function(input,output,session){
     p
   })}
   })
+  # The bar chart is below, need observe because the inputs are reactive to other inputs
   observe({
     if(input$month_Input == '' | input$day_Input == ''){
       return()
@@ -183,5 +204,5 @@ server <- function(input,output,session){
   })
   
 }
-
+# Call the app
 shinyApp(ui=ui, server=server)
