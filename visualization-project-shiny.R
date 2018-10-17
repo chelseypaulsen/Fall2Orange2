@@ -73,6 +73,7 @@ full_df %>% filter(year(datetime) == '2009',month(datetime) == '10',
   summarise_all(funs(mean)) %>% select(-datetime) %>%
   gather(well, depth)
 day(full_df$datetime)
+
 ui <- fluidPage(
   
   titlePanel('South Florida Well Visualization Dashboard'),
@@ -80,14 +81,16 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel('Options',
                  selectInput('choice','What Do You Want to Do?', c('Explore','Predict'), selected='Explore'),
-                 selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852'),
                  conditionalPanel(
                    condition = 'input.choice == "Explore"',
+                    checkboxGroupInput('well_check','Well',
+                                       choices=colnames(full_df[-1]),selected='G852'),
                     selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
                     selectInput('month_Input','Month',''),
                     selectInput('day_Input','Day','')),
                  conditionalPanel(
                    condition = 'input.choice == "Predict"',
+                   selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852'),
                    sliderInput('range_Input','Hours Predicted',0,168,c(1))
                  )
                 ),
@@ -110,7 +113,12 @@ ui <- fluidPage(
 
 server <- function(input,output,session){
   reactive_data_well <- reactive({
-    full_df %>% select(datetime,input$well_Input)
+    full_df %>% select(datetime,input$well_check)
+  })
+  
+  observe({
+    print(input$well_check)
+    print(names(reactive_data_well()))
   })
   
   reactive_data_year <- reactive({
@@ -136,12 +144,18 @@ server <- function(input,output,session){
   }
     })
 
-  output$timeOutput <- renderPlot({
+  observe({
     
-    ycol <- input$well_Input
-    
-    ggplot(reactive_data_well(), aes_string(x='datetime',y=ycol)) +
-      geom_line()
+    output$timeOutput <- renderPlot({
+    p <- ggplot(reactive_data_well(), aes_string(x='datetime'))
+    i <- 1
+    cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+    for (selection in input$well_check){
+      p <- p + geom_line(aes_string(y=selection,color=cbbPalette[i]))
+      i <- i + 1
+    }
+    p
+  })
   })
   observe({
     if(input$month_Input == '' | input$day_Input == ''){
