@@ -146,16 +146,23 @@ server <- function(input,output,session){
 
   observe({
     
+    if (length(input$well_check) >= 6){
+      print('Please select no more than 5 wells at a time.')
+      actual_inputs <- input$well_check[1:5]
+    }
+    else{
     output$timeOutput <- renderPlot({
     p <- ggplot(reactive_data_well(), aes_string(x='datetime'))
     i <- 1
     cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
     for (selection in input$well_check){
-      p <- p + geom_line(aes_string(y=selection,color=cbbPalette[i]))
+      print(cbbPalette[i])
+      p <- p + geom_line(aes_string(y=selection,color=shQuote(cbbPalette[i])))
       i <- i + 1
     }
     p
-  })
+  })}
   })
   observe({
     if(input$month_Input == '' | input$day_Input == ''){
