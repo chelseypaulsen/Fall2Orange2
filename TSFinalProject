@@ -18,10 +18,12 @@ library(tidyr)
 
 ##################################################  HW1  #################################################################
 
-file.dir <- "C:\\Users\\Allison\\Documents\\Time Series\\"
+#file.dir <- "C:\\Users\\Allison\\Documents\\Time Series\\"
+file.dir <- "C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\"
 
 #well data read in and clean
-well<- read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",3)
+#well<- read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",3)
+well<- read_xlsx("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx",3)
 well_df <- data.frame(well)
 
 well_df_clean <- mutate(well_df, Datetime=date(date))  # adds date to datetime
@@ -34,7 +36,8 @@ well_df_clean <- well_df_clean %>%    # summarizes to hourly data and
            Datetime <= ymd_hm('2018-06-12 23:00'))
 
 #tide data read in and clean
-tide<-read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",2)
+#tide<-read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",2)
+tide<-read_xlsx("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx",2)
 tide_df <- data.frame(tide)
 
 tide_df_clean <- mutate(tide_df, Datetime=date(Date))  # adds date to datetime
@@ -47,7 +50,8 @@ tide_df_clean <- tide_df_clean %>%    # summarizes to hourly data and
            Datetime <= ymd_hm('2018-06-12 23:00'))
 
 #rain data read in and clean
-rain<-read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",1)
+#rain<-read_xlsx("C:\\Users\\Allison\\Documents\\Time Series\\G-3549.xlsx",1)
+rain<-read_xlsx("C:\\Users\\chels\\Desktop\\MSA\\Fall 2\\Time Series 2\\Well Data\\G-3549.xlsx",1)
 rain$date<- as.Date(rain$Date)
 rain$time<- format(as.POSIXct(rain$Date, "%H:%M:%S"))
 rain_df <-data.frame(rain)
@@ -75,27 +79,34 @@ df2 <- datetimes %>%
 df3<-datetimes %>%
   left_join(rain_df_clean, by='Datetime') 
 
+#sum(is.na(rain_df_clean))
 
 # change to zoo object
 well_ft <- read.zoo(df1)
-tide_ft <- read.zoo(df2)
-rain_ft <- read.zoo(df3)
+#tide_ft <- read.zoo(df2)
+#rain_ft <- read.zoo(df3)
 
 
 # Impute missing values (fill in well_ft NAs)
 well_ft_impute <- na.approx(well_ft)
-tide_ft_impute <- na.approx(tide_ft)
-rain_ft_impute <- na.approx(rain_ft)
+#tide_ft_impute <- na.approx(tide_ft)
+#rain_ft_impute <- na.approx(rain_ft)
 
 #Split into training and test
 train_well = well_ft_impute[67325:93623,] #just using last 3 years to speed processing
 test_well = well_ft_impute[93624:93791,]
 
-train_tide = tide_ft_impute[67325:93623,]
-test_tide = tide_ft_impute[93624:93791,]
+#train_tide = tide_df_clean tide_ft_impute[67325:93623,]
+#test_tide = tide_ft_impute[93624:93791,]
 
-train_rain = rain_ft_impute[67325:93623,]
-test_rain = rain_ft_impute[93624:93791,]
+train_tide = df2$Tide_ft[67325:93623]
+test_tide = df2$Tide_ft[93624:93791]
+
+#train_rain = rain_ft_impute[67325:93623,]
+#test_rain = rain_ft_impute[93624:93791,]
+
+train_rain = df3$RAIN_FT[67325:93623]
+test_rain = df3$RAIN_FT[93624:93791]
 
 plot(train_rain)
 plot(train_tide)
@@ -104,7 +115,13 @@ plot(train_well)
 arima_well = Arima(train_well, order=c(5,0,5))
 summary(arima_well)
 ndiffs(arima_well$residuals)
+#0
 
+###########################################################################################
+auto.arima(arima_well$residuals,seasonal=T)
+#arima(2,0,2)
+
+###########################################################################################
 
 #running model with all vars--STILL LOOKING FOR BEST MODEL
 x.reg=cbind(train_rain)
@@ -122,41 +139,26 @@ summary(model4)
 acf(model3$residuals)
 pacf(model3$residuals)
 
-#White noise plots
-White.LB <- rep(NA, 20)
-for(i in 1:20){
-  White.LB[i] <- Box.test(model3$residuals, lag = i, type = "Ljung", fitdf = 5)$p.value
-}
-#fitdf has to equal the highest ar or ma term
-
-White.LB <- pmin(White.LB, 0.2)
-barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab = "Lags", ylim = c(0, 0.2))
-abline(h = 0.01, lty = "dashed", col = "black")
-abline(h = 0.05, lty = "dashed", col = "black")
-
-
-#plotting forecasted and test values for last week
-f1=forecast(arima1, h=168)
-
-plot(test_well, main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
-     ylab="Water Elevation (ft)",col="red", ylim=c(.1,.6))
-lines(f1$mean)
-lines(f1$upper[,2], col="blue")
-lines(f1$lower[,2], col="blue")
-
-
-##################### possible final model? ##################################
-
 
 ###########################################
 
 
+yearly = 24*365.25
+monthly = 24*(365.25/12)
+biannual = 24*(365.25/2)
+
+seasons <- msts(train_well, start=1, seasonal.periods = c(yearly))
+
+#fitting sine/cosine with fourier
 x.reg=cbind(train_rain, train_tide)
-model5<-Arima(seasons,order=c(12,1,12), xreg=fourier(seasons,K=c(1)), x.reg)
+model5<-Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
 summary(model5)
 #acf and pacf plots
 acf(model5$residuals)
 pacf(model5$residuals)
+
+ndiffs(model5$residuals)
+#0
 
 checkresiduals(model5)
 
@@ -172,3 +174,35 @@ barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab
 abline(h = 0.01, lty = "dashed", col = "black")
 abline(h = 0.05, lty = "dashed", col = "black")
 
+
+
+
+#plotting forecasted and test values for last week
+
+
+# change to zoo object
+tide_ft <- read.zoo(df2)
+rain_ft <- read.zoo(df3)
+
+# Impute missing values (fill in well_ft NAs)
+tide_ft_impute <- na.approx(tide_ft)
+rain_ft_impute <- na.approx(rain_ft)
+
+#making models for the x vars
+model.tide=auto.arima(tide_ft_impute)
+tide.future=forecast(model.tide,h=168)
+model.rain=auto.arima(rain_ft_impute)
+rain.future=forecast(model.rain,h=168)
+
+t.f=tide.future$mean
+r.f=rain.future$mean
+
+newx=cbind(t.f,r.f)
+final.pred=forecast(model5,xreg=newx,h=168) ##This is what is not working
+
+
+plot(test_well, main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
+     ylab="Water Elevation (ft)",col="red", ylim=c(.1,.6))
+lines(final.pred$mean)
+lines(final.pred$upper[,2], col="blue")
+lines(final.pred$lower[,2], col="blue")
