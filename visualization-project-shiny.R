@@ -19,7 +19,9 @@ library(caschrono)
 library(TSA)
 library(quantmod)
 library(imputeTS)
-
+library(dplyr)
+#install.packages(c('stringi'))
+#install.packages(c('shiny','ggplot2','dplyr','tidyverse','readxl','forecast','haven','fma','expsmooth','lubridate','caschrono','imputeTS'))
 # Set up the working directory and initialize the well list
 
 data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
@@ -60,22 +62,17 @@ for (well in wells){
   well_df_clean <- well_df_clean %>% select(datetime,well_ft)
   # Join the data onto the date sequence to find missing values
   full_well_df <- left_join(hourseqdf,well_df_clean,by='datetime')
-  print(sum(is.na(full_well_df$well_ft)))
-  print(well)
   # Create the timeseries object and then impute missing values using imputeTS package
   startday <- as.numeric(strftime(full_well_df$datetime[1], format='%j'))
   timeseries <- ts(full_well_df$well_ft, start=c(2007,startday*24), frequency=(365.25*24))
   imputed <- na.seadec(timeseries, algorithm='locf')
   full_well_df$filled <- imputed
-  print(sum(is.na(full_well_df$filled)))
   full_well_df <- full_well_df %>% select(datetime, filled)
   # Rename the column to the well name
   names(full_well_df)[names(full_well_df) == 'filled'] <- gsub('-','',well)
-  print(sum(is.na(full_well_df[gsub('-','',well)])))
   # Join all the well columns together into one master dataframe
   full_df <- full_df %>% left_join(full_well_df, by='datetime')
-  print(sum(is.na(full_df[gsub('-','',well)])))
-  
+
   }
 
 full_df %>% filter(year(datetime) == '2009',month(datetime) == '10',
@@ -164,25 +161,20 @@ server <- function(input,output,session){
     })
 # Again use observe to allow the ggplot to have a variable number of lines in it
   observe({
-    # This currently doesn't work
-    if (length(input$well_check) >= 6){
-      print('Please select no more than 5 wells at a time.')
-      actual_inputs <- input$well_check[1:5]
-    }
-    else{ # Below the plot iterates over however many wells are selected and adds them to the graph
+   # Below the plot iterates over however many wells are selected and adds them to the graph
     output$timeOutput <- renderPlot({
-    p <- ggplot(reactive_data_well(), aes_string(x='datetime'))
-    i <- 1
+    p <- ggplot(reactive_data_well(), aes(x=datetime))
     # Need better colors
     cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
+    i <- 1
     for (selection in input$well_check){
-      print(cbbPalette[i])
-      p <- p + geom_line(aes_string(y=selection,color=shQuote(cbbPalette[i])))
+      
+      p <- p + geom_line(aes_string(y=selection), color=cbbPalette[i])
       i <- i + 1
     }
+    p <- p + scale_fill_discrete(name='Well', labels=input$well_check) + theme(legend.position='right')
     p
-  })}
+  })
   })
   # The bar chart is below, need observe because the inputs are reactive to other inputs
   observe({
