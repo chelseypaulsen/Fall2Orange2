@@ -150,7 +150,8 @@ biannual = 24*(365.25/2)
 seasons <- msts(train_well, start=1, seasonal.periods = c(yearly))
 
 #fitting sine/cosine with fourier
-x.reg=cbind(train_rain, train_tide)
+#x.reg=cbind(train_rain, train_tide)
+x.reg=train_rain
 model5<-Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
 summary(model5)
 #acf and pacf plots
@@ -160,7 +161,7 @@ pacf(model5$residuals)
 ndiffs(model5$residuals)
 #0
 
-checkresiduals(model5)
+#checkresiduals(model5)
 
 #White noise plots
 White.LB <- rep(NA, 48)
@@ -173,42 +174,39 @@ White.LB <- pmin(White.LB, 0.2)
 barplot(White.LB, main = "Ljung-Box Test P-values", ylab = "Probabilities", xlab = "Lags", ylim = c(0, 0.2))
 abline(h = 0.01, lty = "dashed", col = "black")
 abline(h = 0.05, lty = "dashed", col = "black")
-
-
-
+dim()
 
 #plotting forecasted and test values for last week
 
 
 # change to zoo object
-tide_ft <- read.zoo(df2)
+#tide_ft <- read.zoo(df2)
 rain_ft <- read.zoo(df3)
 
 # Impute missing values (fill in well_ft NAs)
-tide_ft_impute <- na.approx(tide_ft)
+#tide_ft_impute <- na.approx(tide_ft)
 rain_ft_impute <- na.approx(rain_ft)
 
 #making models for the x vars
-model.tide=auto.arima(tide_ft_impute)
+#model.tide=auto.arima(tide_ft_impute)
 #summary(model.tide)#(5,1,1)
 #model.tide=Arima(tide_ft_impute,order=c(5,0,1))
-tide.future=forecast(model.tide,h=168)
+#tide.future=forecast(model.tide,h=168)
 model.rain=auto.arima(rain_ft_impute)
 #summary(model.rain)#(3,0,2)
 rain.future=forecast(model.rain,h=168)
 
-t.f=tide.future$mean
+#t.f=tide.future$mean
 r.f=rain.future$mean
 
 seasons2 <- msts(test_well, start=1, seasonal.periods = c(yearly))
-newx=cbind(t.f,r.f)
-final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) ##This is what is not working
-
-
+#newx=cbind(t.f,r.f)
+newx=cbind(r.f)
+final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) 
 
 plot(as.numeric(test_well), main="Forecasted and Actual Water Elevation Values Over Time", xlab="Time",
-     ylab="Water Elevation (ft)",col="red", ylim=c(.1,2))
+     ylab="Water Elevation (ft)",col="red", ylim=c(-.1,.6))
 
-lines(as.numeric(final.pred$mean)) #ts objects on same scale
+lines(as.numeric(final.pred$mean))
 lines(as.numeric(final.pred$upper[,2], col="blue"))
 lines(as.numeric(final.pred$lower[,2], col="blue"))
