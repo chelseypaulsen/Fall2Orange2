@@ -1,0 +1,40 @@
+libname time 'C:\Users\chels\Desktop\MSA\Fall 1\Time Series\Data';
+run;
+
+data ts_final;
+set time.df4;
+run;
+
+/* Creating lag variables */
+data ts_final;
+set ts_final;
+tide1=Lag1(df2_tide_ft);
+tide2=Lag2(df2_tide_ft);
+tide3=Lag3(df2_tide_ft);
+tide4=Lag4(df2_tide_ft);
+tide5=Lag5(df2_tide_ft);
+tide6=Lag6(df2_tide_ft);
+rain1=Lag1(df2_rain_ft);
+rain2=Lag2(df2_rain_ft);
+rain3=Lag3(df2_rain_ft);
+rain4=Lag4(df2_rain_ft);
+rain5=Lag5(df2_rain_ft);
+rain6=Lag6(df2_rain_ft);
+run;
+
+data train;
+set ts_final;
+if _n_<67326;
+run;
+
+data test;
+set ts_final;
+if _n_>67325;
+run;
+
+proc arima data=train;
+identify var= df_well_x crosscorr=(df2_tide_ft tide1 tide2 tide3 tide4 tide5 tide6 df3_rain_ft rain1 rain2 rain3 rain4 rain5 rain6);
+estimate p=2 input=(df2_Tide_ft tide1 tide2 tide3 tide4 tide5 tide6 df3_rain_ft rain1 rain2 rain3 rain4 rain5 rain6);
+forecast out=resid1;
+run;
+quit;
