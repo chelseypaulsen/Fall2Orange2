@@ -20,7 +20,9 @@ library(TSA)
 library(quantmod)
 library(imputeTS)
 library(dplyr)
+#install.packages('rlang')
 #install.packages(c('stringi'))
+library(rlang)
 #install.packages(c('shiny','ggplot2','dplyr','tidyverse','readxl','forecast','haven','fma','expsmooth','lubridate','caschrono','imputeTS'))
 # Set up the working directory and initialize the well list
 
@@ -38,6 +40,12 @@ hourseq <- seq(start,end, by='hours')
 full_df <- data.frame(datetime=hourseq)
 hourseqdf <- as.data.frame(hourseq)
 names(hourseqdf) <- c('datetime')
+end_df = data.frame(names = wells, 
+                    ends = c('','3/26/2018 10','6/4/2018 10','4/9/2018 12','6/12/2018 23','4/9/2018 11','6/4/2018 12','','6/8/2018 11','6/8/2018 09',
+                             '6/8/2018 09','6/12/2018 23','2/8/2018 09'),
+                    starts = c('10/1/2007 00','10/1/2007 01','10/1/2007 01','10/1/2007 01','10/5/2007 00','10/1/2007 00','10/1/2007 01',
+                               '10/1/2007 00','10/1/2007 01','10/10/2007 00','10/1/2007 01','10/1/2007 01','10/1/2007 01'),
+                    stringsAsFactors = F)
 
 # Read the excel files in and clean them
 
@@ -45,33 +53,52 @@ for (well in wells){
   if (well == 'G-852'){
     df <- read_excel(paste(data.dir,well,'.xlsx',sep=''),sheet='Well',
                      col_names=c('date','time','tz_code','well_ft',
-                                 'Code','Corrected'),skip=32)
+                                 'Code','Corrected'),skip=1)
   }
   else{
   df <- read_excel(paste(data.dir,well,'.xlsx',sep=''),sheet='Well')
   }
   well_df <- data.frame(df)
   print(well)
+  
+  startwell <- (end_df %>% filter(names==well) %>% select(starts))
+  endwell <- (end_df %>% filter(names==well) %>% select(ends))
   well_df_clean <- mutate(well_df, time=hour(time))  # adds date to datetime
   well_df_clean$datetime <- as.POSIXct(paste(well_df_clean$date,well_df_clean$time), format='%Y-%m-%d %H',tz='UTC')
-  well_df_clean <- well_df_clean %>%    # summarizes to hourly data and
+  if ((endwell) != ''){
+    well_df_clean <- well_df_clean %>%    # summarizes to hourly data and
     group_by(datetime) %>%              # averages Corrected values when multiple rows have same datetime
     summarise(well_ft=mean(Corrected)) %>%
-    filter(datetime >= ymd_hm('2007-10-01 01:00') &    # filters to dates defined in Simmons instructions
-             datetime <= ymd_hm('2018-06-12 23:00'))
+    filter(datetime >= mdy_h(startwell) &    # filters to dates defined in Simmons instructions
+             datetime <= mdy_h(endwell))}
+  else{
+    well_df_clean <- well_df_clean %>%
+      group_by(datetime) %>%
+      summarise(well_ft=mean(Corrected)) %>%
+      filter(datetime >= mdy_h(startwell))
+  }
   well_df_clean <- well_df_clean %>% select(datetime,well_ft)
+  if(endwell != ''){
+  hourseq2 <- seq(mdy_h(startwell),mdy_h(endwell), by='hours')
+  }
+  else{
+    hourseq2 <- seq(mdy_h(startwell),max(well_df_clean$datetime),by='hours')
+  }
+  hourseq2df <- as.data.frame(hourseq2)
+  names(hourseq2df) <- c('datetime')
   # Join the data onto the date sequence to find missing values
-  full_well_df <- left_join(hourseqdf,well_df_clean,by='datetime')
+  full_well_df <- left_join(hourseq2df,well_df_clean,by='datetime')
   # Create the timeseries object and then impute missing values using imputeTS package
-  startday <- as.numeric(strftime(full_well_df$datetime[1], format='%j'))
+  startday <- as.numeric(strftime(mdy_h(startwell), format='%j'))
   timeseries <- ts(full_well_df$well_ft, start=c(2007,startday*24), frequency=(365.25*24))
   imputed <- na.seadec(timeseries, algorithm='locf')
   full_well_df$filled <- imputed
-  full_well_df <- full_well_df %>% select(datetime, filled)
+  final_well <- left_join(hourseqdf,full_well_df, by='datetime')
+  final_well <- final_well %>% select(datetime, filled)
   # Rename the column to the well name
-  names(full_well_df)[names(full_well_df) == 'filled'] <- gsub('-','',well)
+  names(final_well)[names(final_well) == 'filled'] <- gsub('-','',well)
   # Join all the well columns together into one master dataframe
-  full_df <- full_df %>% left_join(full_well_df, by='datetime')
+  full_df <- full_df %>% left_join(final_well, by='datetime')
 
   }
 
@@ -172,7 +199,8 @@ server <- function(input,output,session){
       p <- p + geom_line(aes_string(y=selection), color=cbbPalette[i])
       i <- i + 1
     }
-    p <- p + scale_fill_discrete(name='Well', labels=input$well_check) + theme(legend.position='right')
+    p <- p + scale_fill_discrete(name='Well', labels=input$well_check) + theme(legend.position='right') +
+      labs(y='Well Elevation (ft)', x='Year')
     p
   })
   })
@@ -182,15 +210,20 @@ server <- function(input,output,session){
       return()
     }
     else{
-      reactive_data_date <- reactive({(full_df %>% filter(year(datetime) == input$year_Input,
-                                               month(datetime) == input$month_Input,
-                                               day(datetime) == input$day_Input) %>%
-        summarise_all(funs(mean)) %>% select(-datetime) %>%
-        gather(well, depth))})
+      reactive_prelim <- reactive({(full_df %>% filter(year(datetime) == input$year_Input,month(datetime) == input$month_Input,
+                          day(datetime) == input$day_Input) %>% summarise_all(funs(mean)) %>% select(-datetime) %>%
+                          gather(well, depth))})
+      
+      reactive_data_date <- reactive({new <- reactive_prelim()
+                                      new$sign <- as.factor(reactive_prelim()$depth > 0)
+                                      
+                                      new})
       
       output$dateOutput <- renderPlot({
-        ggplot(reactive_data_date(), aes_string(x='well',y='depth')) +
-          geom_col()
+        ggplot(reactive_data_date(), aes_string(x='well',y='depth',fill='sign')) +
+          geom_col() +
+          labs(x='Well',y='Well Elevation (ft)') +
+          guides(fill=F)
       })
     }
   })
