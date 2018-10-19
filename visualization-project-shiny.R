@@ -217,7 +217,7 @@ server <- function(input,output,session){
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)))})
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)), vjust=-0.25, size=4)})
     }
   })
   
