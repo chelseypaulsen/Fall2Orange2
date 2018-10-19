@@ -31,6 +31,11 @@ data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
 wells <- c('G-852','F-45','F-179','F-319','G-561_T','G-580A','G-860','G-1220_T',
            'G-1260_T','G-2147_T','G-2866_T','G-3549','PB-1680_T')
 
+rainlist <- c('G852_RAIN','F45_RAIN','F179_RAIN','F319_RAIN','G561_T_RAIN','G580A_RAIN','G860_RAIN','G1220_T_RAIN',
+           'G1260_T_RAIN','G2147_T_RAIN','G2866_T_RAIN','G3549_RAIN','PB1680_T_RAIN')
+
+welllist <- c('G852','F45','F179','F319','G561_T','G580A','G860','G1220_T',
+              'G1260_T','G2147_T','G2866_T','G3549','PB1680_T')
 # Create a sequence of dates and convert to dataframe to find missing dates in well data
 
 start <- ymd_h("2007/10/01 00", tz='UTC')
@@ -95,14 +100,75 @@ for (well in wells){
   full_well_df$filled <- imputed
   final_well <- left_join(hourseqdf,full_well_df, by='datetime')
   final_well <- final_well %>% select(datetime, filled)
+  
+  #####################
+  ##### Rain Data #####
+  #####################
+  
+  rain <- read_xlsx(paste(data.dir,well,'.xlsx',sep=""),sheet='Rain')
+  rain$date<- as.Date(rain$Date)
+  rain$time<- format(as.POSIXct(rain$Date, "%H:%M:%S"))
+  rain_df <-data.frame(rain)
+  
+  rain_df_clean <- mutate(rain_df, datetime=date(date))  # adds date to datetime
+  hour(rain_df_clean$datetime) <- hour(rain_df_clean$time) # Adds hour to datetime. Removes minutes from all hours
+  rain_df_clean$datetime <- as.POSIXct(rain_df_clean$datetime) # change time type of newly created Datetime
+  if(endwell != ''){
+  rain_df_clean <- rain_df_clean %>%    # summarizes to hourly data and  
+    group_by(datetime) %>%              # averages Corrected values when multiple rows have same datetime
+    summarise(RAIN_FT=mean(RAIN_FT)) %>%
+    filter(datetime >= mdy_h(startwell) &    # filters to dates defined in Simmons instructions
+             datetime <= mdy_h(endwell))}
+  else{
+    rain_df_clean <- rain_df_clean %>%
+      group_by(datetime) %>%
+      summarise(RAIN_FT=mean(RAIN_FT)) %>%
+      filter(datetime >= mdy_h(startwell))
+  }
+  names(rain_df_clean)[names(rain_df_clean) == 'RAIN_FT'] <- paste(gsub('-','',well),'_RAIN',sep='')
+           
   # Rename the column to the well name
   names(final_well)[names(final_well) == 'filled'] <- gsub('-','',well)
+  final_well <- left_join(final_well, rain_df_clean, by='datetime')
   # Join all the well columns together into one master dataframe
   full_df <- full_df %>% left_join(final_well, by='datetime')
 
   }
 
-full_df %>% select(datetime,F45,G3549) %>% gather(well, depth,-datetime)
+head(full_df)
+
+###############################
+# The modelling code is below #
+###############################
+
+well_ts <- read.zoo(full_df %>% select(datetime,G3549))
+rain_ts <- read.zoo(full_df %>% select(datetime,G3549_RAIN))
+
+train_well = well_ft_impute[67325:93623,] #just using last 3 years to speed processing
+test_well = well_ft_impute[93624:93791,]
+
+train_rain = df3$RAIN_FT[67325:93623]
+test_rain = df3$RAIN_FT[93624:93791]
+
+yearly = 24*365.25
+
+seasons <- msts(train_well, start=1, seasonal.periods = c(yearly))
+
+#fitting sine/cosine with fourier
+x.reg=train_rain
+model5<-Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
+summary(model5)
+
+# Impute missing values (fill in well_ft NAs)
+rain_ft_impute <- na.approx(rain_ft)
+model.rain=auto.arima(rain_ft_impute)
+rain.future=forecast(model.rain,h=168)
+r.f=rain.future$mean
+
+seasons2 <- msts(test_well, start=1, seasonal.periods = c(yearly))
+newx=cbind(r.f)
+
+final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) 
 
 ###############################
 # Below is the shiny app code #
@@ -120,13 +186,13 @@ ui <- fluidPage(
                  conditionalPanel(
                    condition = 'input.choice == "Explore"',
                     checkboxGroupInput('well_check','Well',
-                                       choices=colnames(full_df[-1]),selected='G852'),
+                                       choices=welllist,selected='G852'),
                     selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
                     selectInput('month_Input','Month',''),
                     selectInput('day_Input','Day','')),
                  conditionalPanel(
                    condition = 'input.choice == "Predict"',
-                   selectInput('well_Input','Well',colnames(full_df[,-1]),selected='G852'),
+                   selectInput('well_Input','Well',welllist,selected='G852'),
                    sliderInput('range_Input','Hours Predicted',0,168,c(1))
                  )
                 ),
@@ -142,7 +208,10 @@ ui <- fluidPage(
       conditionalPanel(
         condition = 'input.choice == "Predict"',
         h4('Well Prediction for Selected Well and Hours'),
-        plotOutput('predictOutput')),
+        plotOutput('predictOutput'),
+        br(),
+        h4('Rain Measurements'),
+        plotOutput('rainOutput')),
       br())
     )
 )
@@ -153,7 +222,6 @@ server <- function(input,output,session){
   
   reactive_data_well <- reactive({
     full_df %>% select(datetime,input$well_check) %>% gather(well, depth, -datetime)
-    
   })
   
   observe({
@@ -186,17 +254,22 @@ server <- function(input,output,session){
     })
 # Again use observe to allow the ggplot to have a variable number of lines in it
   observe({
-    
+    if(is.null(input$well_check)){
+      output$timeOutput <- renderPlot({
+        ggplot(reactive_data_well(), aes(x=datetime))
+      })
+    }
+    else{
    # Below the plot iterates over however many wells are selected and adds them to the graph
-    output$timeOutput <- renderPlot({
-    p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line()
+      output$timeOutput <- renderPlot({
+      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line()
     # Need better colors
-    cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+      cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
     
-    p <- p + scale_fill_discrete(name='Well') + theme(legend.position='right') +
+      p <- p + theme(legend.position='right') +
       labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
-    p
-  })
+      p
+  })}
   })
   # The bar chart is below, need observe because the inputs are reactive to other inputs
   observe({
@@ -204,7 +277,7 @@ server <- function(input,output,session){
       return()
     }
     else{
-      reactive_prelim <- reactive({(full_df %>% filter(year(datetime) == input$year_Input,month(datetime) == input$month_Input,
+      reactive_prelim <- reactive({(full_df %>% select(datetime, one_of(welllist)) %>% filter(year(datetime) == input$year_Input,month(datetime) == input$month_Input,
                           day(datetime) == input$day_Input) %>% summarise_all(funs(mean)) %>% select(-datetime) %>%
                           gather(well, depth))})
       
@@ -217,8 +290,19 @@ server <- function(input,output,session){
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)), vjust=-0.25, size=4)})
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)), vjust=-0.25, size=4) + 
+          scale_color_manual(values=c('blue','red'))}) 
     }
+  })
+  
+  observe({
+    
+    reactive_rain <- reactive({full_df %>% select(datetime,input$well_Input,paste(input$well_Input,'_RAIN',sep=''))
+    })
+    print(head(reactive_rain()))
+    output$rainOutput <- renderPlot({ggplot(reactive_rain(), aes_string(x='datetime',y=paste(input$well_Input,'_RAIN',sep=''))) +
+        geom_line() + labs(x='Year',y='Rain (ft)')
+    })
   })
   
 }
