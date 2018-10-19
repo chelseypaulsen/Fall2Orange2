@@ -166,3 +166,44 @@ lines(as.numeric(final.pred$lower[,2], col="blue"))
 #Getting mape and rmse for the test set
 rmse= sqrt(sum(as.numeric(final.pred$mean)-as.numeric(test_well))**2/168)
 MAPE= sum(abs(as.numeric(test_well)-as.numeric(final.pred$mean))/as.numeric(test_well))/168
+
+############ FINAL PLOTS ###############
+
+#Building dataframe of results cause my head was going to explode with plotting TimeSeries objects...
+df_results <- as.data.frame(cbind( 
+  final.pred$mean, 
+  final.pred$upper[,1],
+  final.pred$upper[,2], 
+  final.pred$lower[,1], 
+  final.pred$lower[,2]))
+colnames(df_results) <- c('Forecast', 'Upper80', 'Upper95', 'Low80', 'Low95')
+df_results$Date.H <- index(test_well) #can't mutate or bind, as it'll lose POSIX format
+pred_start = df_results$Date.H[1] # use first point of predictions as basis for actual data extents
+pred_start 
+
+#apply filter to imputed well data, then join df_results also add join here
+df_plot <- as.data.frame(well_ft_impute) #inclusion of all well data allows for display of training data if desired
+df_plot$Date.H <- index(well_ft_impute)  # again can't mutate or bind w/o trouble
+df_plot <- df_plot %>%
+  filter(Date.H >= (as.POSIXct(pred_start)-1*86400)) %>% # subtracting days * seconds per day, for glimpse at training data
+  left_join(df_results, by="Date.H") %>%
+  rename(Actual= well_ft_impute)
+str(df_plot) #all well data and predictions, trimmed for graph
+
+#Actually plotting
+plt1 <- ggplot(df_plot, aes(x = Date.H)) +   
+  ggtitle("Well G-3549 Forecast") + xlab("Date") + ylab("Water Table Elevation (FT-MSL)") +
+  #labs(subtitle = "2018 Results")+
+  geom_ribbon(aes(ymin = Low95, ymax = Upper95, fill = "95%"), alpha=.5) +
+  geom_ribbon(aes(ymin = Low80, ymax = Upper80, fill = "80%"), alpha=.7) +
+  geom_line(aes(y = Actual, group = 1, colour = "Actual"), size = 1, alpha=.7) +
+  geom_line(aes(y = Forecast, group = 2, colour = "Forecast"), size = 1, lty=2) +
+  scale_colour_brewer(name = "Legend", type = "qual", palette = "Dark2") +
+  scale_fill_brewer(name = "Intervals") +
+  guides(colour = guide_legend(order = 1), fill = guide_legend(order = 2)) +
+  theme_grey()
+plt1
+
+#Getting mape and rmse for the test set
+rmse= sqrt(sum(as.numeric(final.pred$mean)-as.numeric(test_well))**2/168)
+MAPE= sum(abs(as.numeric(test_well)-as.numeric(final.pred$mean))/as.numeric(test_well))/168
