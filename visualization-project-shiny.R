@@ -102,11 +102,7 @@ for (well in wells){
 
   }
 
-full_df %>% filter(year(datetime) == '2009',month(datetime) == '10',
-                   day(datetime) == '25') %>%
-  summarise_all(funs(mean)) %>% select(-datetime) %>%
-  gather(well, depth)
-day(full_df$datetime)
+full_df %>% select(datetime,F45,G3549) %>% gather(well, depth,-datetime)
 
 ###############################
 # Below is the shiny app code #
@@ -154,8 +150,10 @@ ui <- fluidPage(
 # Below is the server code for shiny
 
 server <- function(input,output,session){
+  
   reactive_data_well <- reactive({
-    full_df %>% select(datetime,input$well_check)
+    full_df %>% select(datetime,input$well_check) %>% gather(well, depth, -datetime)
+    
   })
   
   observe({
@@ -188,19 +186,15 @@ server <- function(input,output,session){
     })
 # Again use observe to allow the ggplot to have a variable number of lines in it
   observe({
+    
    # Below the plot iterates over however many wells are selected and adds them to the graph
     output$timeOutput <- renderPlot({
-    p <- ggplot(reactive_data_well(), aes(x=datetime))
+    p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line()
     # Need better colors
     cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-    i <- 1
-    for (selection in input$well_check){
-      
-      p <- p + geom_line(aes_string(y=selection), color=cbbPalette[i])
-      i <- i + 1
-    }
-    p <- p + scale_fill_discrete(name='Well', labels=input$well_check) + theme(legend.position='right') +
-      labs(y='Well Elevation (ft)', x='Year')
+    
+    p <- p + scale_fill_discrete(name='Well') + theme(legend.position='right') +
+      labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
     p
   })
   })
@@ -220,11 +214,10 @@ server <- function(input,output,session){
                                       new})
       
       output$dateOutput <- renderPlot({
-        ggplot(reactive_data_date(), aes_string(x='well',y='depth',fill='sign')) +
+        ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(x='Well',y='Well Elevation (ft)') +
-          guides(fill=F)
-      })
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)))})
     }
   })
   
