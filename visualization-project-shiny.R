@@ -1,3 +1,4 @@
+rm(list=ls())
 library(shiny)
 library(ggplot2)
 #install.packages(c('maps','mapproj','caschrono'))
@@ -27,6 +28,7 @@ library(rlang)
 # Set up the working directory and initialize the well list
 
 data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
+data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
 
 wells <- c('G-852','F-45','F-179','F-319','G-561_T','G-580A','G-860','G-1220_T',
            'G-1260_T','G-2147_T','G-2866_T','G-3549','PB-1680_T')
@@ -147,6 +149,7 @@ rain_ts <- read.zoo(full_df %>% select(datetime,G3549_RAIN))
 train_well = well_ft_impute[67325:93623,] #just using last 3 years to speed processing
 test_well = well_ft_impute[93624:93791,]
 
+#need to replace df3 with more better df 
 train_rain = df3$RAIN_FT[67325:93623]
 test_rain = df3$RAIN_FT[93624:93791]
 
@@ -183,6 +186,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel('Options',
                  selectInput('choice','What Do You Want to Do?', c('Explore','Predict'), selected='Explore'),
+                 # 'Explor' sidebar panels
                  conditionalPanel(
                    condition = 'input.choice == "Explore"',
                     checkboxGroupInput('well_check','Well',
@@ -190,6 +194,7 @@ ui <- fluidPage(
                     selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
                     selectInput('month_Input','Month',''),
                     selectInput('day_Input','Day','')),
+                 # 'Predict' sidebar panels
                  conditionalPanel(
                    condition = 'input.choice == "Predict"',
                    selectInput('well_Input','Well',welllist,selected='G852'),
@@ -197,6 +202,7 @@ ui <- fluidPage(
                  )
                 ),
     mainPanel(
+      # 'Explore' panels
       conditionalPanel(
         condition = 'input.choice == "Explore"',
           h4('Timeseries Plot of Selected Well'),
@@ -205,6 +211,7 @@ ui <- fluidPage(
           h4('Well Heights on Selected Date'),
           plotOutput('dateOutput')),
       br(),
+      # 'Predict' panels
       conditionalPanel(
         condition = 'input.choice == "Predict"',
         h4('Well Prediction for Selected Well and Hours'),
@@ -262,8 +269,10 @@ server <- function(input,output,session){
     else{
    # Below the plot iterates over however many wells are selected and adds them to the graph
       output$timeOutput <- renderPlot({
-      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line()
-    # Need better colors
+      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5)
+      #TODO attempts at this failed: +geom_vline(xintercept = ) 
+    
+      # Need better colors
       cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
     
       p <- p + theme(legend.position='right') +
