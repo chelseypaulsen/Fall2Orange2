@@ -318,24 +318,35 @@ server <- function(input,output,session){
     output$rainOutput <- renderPlot({ggplot(reactive_rain(), aes_string(x='datetime',y=paste(input$well_Input,'_RAIN',sep=''))) +
         geom_line() + labs(x='Year',y='Rain (ft)')
     })
-    
+  })
+  
+  observe({
+    reactive_rain2 <- reactive({full_df %>% select(datetime,input$well_Input,paste(input$well_Input,'_RAIN',sep=''))
+      })
     num_predicts <- input$range_Input
-    sel_well_ts <- read.zoo(reactive_rain() %>% select(datetime, input$well_Input))
-    
-    rain_model <- auto.arima(na.approx(read.zoo(reactive_rain() %>% select(datetime,paste(input$well_Input,'_RAIN',sep='')))))
+    sel_well_ts <- read.zoo(reactive_rain2() %>% select(datetime, input$well_Input))
+    sel_rain_ts <- read.zoo(reactive_rain2() %>% select(datetime, paste(input$well_Input,'_RAIN',sep='')))
+    print(head(sel_well_ts))
+    print(head(sel_rain_ts))
+
+    rain_model <- auto.arima(na.approx(sel_rain_ts))
     rain_predict <- forecast(rain_model, h=num_predicts)
     r.f2 <- rain_predict$mean
-    
+
     seasonsnew <- msts(sel_well_ts, start=1, seasonal.periods = c(yearly))
-    shinyx <- cbind(r.f2)
-    
-    final.forecast <- forecast(model5, xreg=cbind(fourier(seasonsnew,K=1),shinyx,h=input$range_Input))
-    
+    shinyx <- rbind(sel_rain_ts,r.f2)
+    print(length(r.f2))
+    print(length(sel_rain_ts))
+    print(length(seasonsnew))
+    print(length(shinyx))
+
+    final.forecast <- forecast(model5, xreg=cbind(fourier(seasonsnew,K=1),shinyx),h=input$range_Input)
+
     output$predictOutput <- renderPlot({
       plot(final.forecast)
     })
-    
   })
+    
   
   
   
