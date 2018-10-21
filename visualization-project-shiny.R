@@ -1,4 +1,6 @@
 rm(list=ls())
+options(error = browser())
+
 library(shiny)
 library(ggplot2)
 #install.packages(c('maps','mapproj','caschrono'))
@@ -27,8 +29,8 @@ library(rlang)
 #install.packages(c('shiny','ggplot2','dplyr','tidyverse','readxl','forecast','haven','fma','expsmooth','lubridate','caschrono','imputeTS'))
 # Set up the working directory and initialize the well list
 
-data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
-#data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
+#data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
+data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
 
 wells <- c('G-852','F-45','F-179','F-319','G-561_T','G-580A','G-860','G-1220_T',
            'G-1260_T','G-2147_T','G-2866_T','G-3549','PB-1680_T')
@@ -54,6 +56,58 @@ end_df = data.frame(names = wells,
                                '10/1/2007 00','10/1/2007 01','10/10/2007 00','10/1/2007 01','10/1/2007 01','10/1/2007 01'),
                     stringsAsFactors = F)
 
+
+pred_model5 <- function(final_well){
+  # TODO, incoporate and check that this function works in the for loop
+  
+  # this function takes in a dataframe of well datetimes,well data, and rain data
+  # it returns the original dataframe w/ new cols for forecast and confidence intervals
+  # it also depends on startwell and endwell vectors
+  # returned df also has new names
+  
+  #splitting newly assembled well data for clean model generation
+  if (well == 'G-852' | well == 'G-1220_T'){end_dt <- max(well_df_clean$datetime)
+  }else{end_dt <- mdy_h(endwell)}
+  train <- final_well %>%
+    filter(datetime >= mdy_h(startwell) & datetime <= end_dt) %>%
+    filter(row_number() %in% 0:(n() - 168))
+  test <- final_well %>%
+    filter(datetime >= mdy_h(startwell) & datetime <= end_dt) %>%
+    filter(row_number() %in% (n() - (168-1)):n())
+  
+  # Generating model on training data
+  yearly <- 24*365.25
+  x.reg <- train$RAIN_FT
+  seasons <- msts(train$filled, start=1, seasonal.periods = c(yearly))
+  model5 <- Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
+  
+  # forecasting across last 168 days
+  seasons_test <- msts(test$filled, start=1, seasonal.periods = c(yearly))
+  newx <- cbind(test$RAIN_FT) # using actual rainfall data, because our rain model is really bad
+  final.pred=forecast(model5,xreg=cbind(fourier(seasons_test,K=1),newx),h=168)
+  
+  # building df from results
+  df_results <- as.data.frame(cbind(
+    final.pred$mean,
+    final.pred$upper[,1],
+    final.pred$upper[,2],
+    final.pred$lower[,1],
+    final.pred$lower[,2]))
+  colnames(df_results) <- c('Forecast', 'Upper80', 'Upper95', 'Low80', 'Low95') #probably an unnecessary line
+  df_results$datetime <- test$datetime
+  final_well <- final_well %>%
+    left_join(df_results, by="datetime")
+  
+  # Rename the column to the appropriate names
+  well2 <- gsub('-','',well)
+  names <- c('','_RAIN', '_Forecast', '_Up80', '_Up95', '_Lo80', '_Lo95')
+  uniq_names <- paste(well2,names,sep="")
+  colnames(final_well) <- c("datetime", uniq_names)
+  
+  
+  return(final_well)
+}
+
 # Read the excel files in and clean them
 
 for (well in wells){
@@ -68,8 +122,8 @@ for (well in wells){
   well_df <- data.frame(df)
   print(well)
   
-  startwell <- (end_df %>% filter(names==well) %>% select(starts))
-  endwell <- (end_df %>% filter(names==well) %>% select(ends))
+  startwell <<- (end_df %>% filter(names==well) %>% select(starts))
+  endwell <<- (end_df %>% filter(names==well) %>% select(ends))
   well_df_clean <- mutate(well_df, time=hour(time))  # adds date to datetime
   well_df_clean$datetime <- as.POSIXct(paste(well_df_clean$date,well_df_clean$time), format='%Y-%m-%d %H',tz='UTC')
   if ((endwell) != ''){
@@ -127,53 +181,65 @@ for (well in wells){
       summarise(RAIN_FT=mean(RAIN_FT)) %>%
       filter(datetime >= mdy_h(startwell))
   }
-  names(rain_df_clean)[names(rain_df_clean) == 'RAIN_FT'] <- paste(gsub('-','',well),'_RAIN',sep='')
-           
-  # Rename the column to the well name
-  names(final_well)[names(final_well) == 'filled'] <- gsub('-','',well)
+  
   final_well <- left_join(final_well, rain_df_clean, by='datetime')
+  
+  #####################
+  ##### Forecasting ####
+  #####################
+  
+  # Run function to get forecast
+  # final_well <- pred_model5(rain_n_well) # DISFUNCTIONAL FUNCTION
+  
+  #splitting newly assembled well data for clean model generation
+  if (well == 'G-852' | well == 'G-1220_T'){end_dt <- max(well_df_clean$datetime)
+  }else{end_dt <- mdy_h(endwell)}
+  train <- final_well %>%
+    filter(datetime >= mdy_h(startwell) & datetime <= end_dt) %>%
+    filter(row_number() %in% 0:(n() - 168))
+  test <- final_well %>%
+    filter(datetime >= mdy_h(startwell) & datetime <= end_dt) %>%
+    filter(row_number() %in% (n() - (168-1)):n())
+
+  # Generating model on training data
+  yearly <- 24*365.25
+  x.reg <- train$RAIN_FT
+  seasons <- msts(train$filled, start=1, seasonal.periods = c(yearly))
+  model5 <- Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
+
+  # forecasting across last 168 days
+  seasons_test <- msts(test$filled, start=1, seasonal.periods = c(yearly))
+  newx <- cbind(test$RAIN_FT) # using actual rainfall data, because our rain model is really bad
+  final.pred=forecast(model5,xreg=cbind(fourier(seasons_test,K=1),newx),h=168)
+
+  # building df from results
+  df_results <- as.data.frame(cbind(
+    final.pred$mean,
+    final.pred$upper[,1],
+    final.pred$upper[,2],
+    final.pred$lower[,1],
+    final.pred$lower[,2]))
+  colnames(df_results) <- c('Forecast', 'Upper80', 'Upper95', 'Low80', 'Low95') #probably an unnecessary line
+  df_results$datetime <- test$datetime
+  final_well <- final_well %>%
+    left_join(df_results, by="datetime")
+
+  # Rename the column to the appropriate names
+  well2 <- gsub('-','',well)
+  names <- c('','_RAIN', '_Forecast', '_Up80', '_Up95', '_Lo80', '_Lo95')
+  uniq_names <- paste(well2,names,sep="")
+  colnames(final_well) <- c("datetime", uniq_names)
+  
   # Join all the well columns together into one master dataframe
   full_df <- full_df %>% left_join(final_well, by='datetime')
-
+    
   }
 
 head(full_df)
 
-###############################
-# The modelling code is below #
-###############################
-
-well_ts <- read.zoo(full_df %>% select(datetime,G3549))
-rain_ts <- read.zoo(full_df %>% select(datetime,G3549_RAIN))
-
-train_well = well_ts[67325:93623,] #just using last 3 years to speed processing
-test_well = well_ts[93624:93791,]
-
-#need to replace df3 with more better df 
-train_rain = full_df$G3549_RAIN[67325:93623]
-test_rain = full_df$G3549_RAIN[93624:93791]
-
-yearly = 24*365.25
-
-seasons <- msts(train_well, start=1, seasonal.periods = c(yearly))
-
-#fitting sine/cosine with fourier
-x.reg=train_rain
-model5<-Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
-summary(model5)
-
-# Impute missing values (fill in well_ft NAs)
-rain_ft_impute <- na.approx(rain_ts)
-model.rain=auto.arima(rain_ft_impute)
-rain.future=forecast(model.rain,h=168)
-r.f=rain.future$mean
-
-seasons2 <- msts(test_well, start=1, seasonal.periods = c(yearly))
-newx=cbind(r.f)
-
-final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) 
-
-plot(final.pred)
+# to save time on the above steps. Be careful to not save it to the Git repository. That'll eventually take up a lot of space.
+save(full_df, welllist, file="Well_Viz2.RData") # need to add model to this save effort
+load("C:/Users/Steven/Desktop/Well_Viz2.RData")
 
 ###############################
 # Below is the shiny app code #
