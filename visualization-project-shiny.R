@@ -299,7 +299,6 @@ server <- function(input,output,session){
     
     reactive_rain <- reactive({full_df %>% select(datetime,input$well_Input,paste(input$well_Input,'_RAIN',sep=''))
     })
-    print(head(reactive_rain()))
     output$rainOutput <- renderPlot({ggplot(reactive_rain(), aes_string(x='datetime',y=paste(input$well_Input,'_RAIN',sep=''))) +
         geom_line() + labs(x='Year',y='Rain (ft)')
     })
