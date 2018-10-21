@@ -114,9 +114,12 @@ test_tide = df2$Tide_ft[93624:93791]
 train_rain = df3$RAIN_FT[67325:93623]
 test_rain = df3$RAIN_FT[93624:93791]
 
+#impact of tide
+
 plot(train_rain)
 plot(train_tide)
 plot(train_well)
+plot(test_rain, type='h')
 
 #Select model creation
 yearly = 24*365.25
@@ -202,3 +205,6 @@ plt1
 #Getting mape and rmse for the test set
 rmse= sqrt(sum(as.numeric(final.pred$mean)-as.numeric(test_well))**2/168)
 MAPE= sum(abs(as.numeric(test_well)-as.numeric(final.pred$mean))/as.numeric(test_well))/168
+rmse_rain= sqrt(sum(as.numeric(test_rain)-as.numeric(newx))**2/168)
+rmse_rain
+rmse
