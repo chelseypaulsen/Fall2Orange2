@@ -28,7 +28,7 @@ library(rlang)
 # Set up the working directory and initialize the well list
 
 data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
-data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
+#data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
 
 wells <- c('G-852','F-45','F-179','F-319','G-561_T','G-580A','G-860','G-1220_T',
            'G-1260_T','G-2147_T','G-2866_T','G-3549','PB-1680_T')
@@ -146,12 +146,12 @@ head(full_df)
 well_ts <- read.zoo(full_df %>% select(datetime,G3549))
 rain_ts <- read.zoo(full_df %>% select(datetime,G3549_RAIN))
 
-train_well = well_ft_impute[67325:93623,] #just using last 3 years to speed processing
-test_well = well_ft_impute[93624:93791,]
+train_well = well_ts[67325:93623,] #just using last 3 years to speed processing
+test_well = well_ts[93624:93791,]
 
 #need to replace df3 with more better df 
-train_rain = df3$RAIN_FT[67325:93623]
-test_rain = df3$RAIN_FT[93624:93791]
+train_rain = full_df$G3549_RAIN[67325:93623]
+test_rain = full_df$G3549_RAIN[93624:93791]
 
 yearly = 24*365.25
 
@@ -163,7 +163,7 @@ model5<-Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
 summary(model5)
 
 # Impute missing values (fill in well_ft NAs)
-rain_ft_impute <- na.approx(rain_ft)
+rain_ft_impute <- na.approx(rain_ts)
 model.rain=auto.arima(rain_ft_impute)
 rain.future=forecast(model.rain,h=168)
 r.f=rain.future$mean
@@ -172,6 +172,8 @@ seasons2 <- msts(test_well, start=1, seasonal.periods = c(yearly))
 newx=cbind(r.f)
 
 final.pred=forecast(model5,xreg=cbind(fourier(seasons2,K=1),newx),h=168) 
+
+plot(final.pred)
 
 ###############################
 # Below is the shiny app code #
@@ -234,6 +236,11 @@ server <- function(input,output,session){
   observe({
     print(input$well_check)
     print(names(reactive_data_well()))
+  })
+  
+  observe({
+    print(input$well_Input)
+    print(input$range_Input)
   })
   
   reactive_data_year <- reactive({
@@ -311,7 +318,26 @@ server <- function(input,output,session){
     output$rainOutput <- renderPlot({ggplot(reactive_rain(), aes_string(x='datetime',y=paste(input$well_Input,'_RAIN',sep=''))) +
         geom_line() + labs(x='Year',y='Rain (ft)')
     })
+    
+    num_predicts <- input$range_Input
+    sel_well_ts <- read.zoo(reactive_rain() %>% select(datetime, input$well_Input))
+    
+    rain_model <- auto.arima(na.approx(read.zoo(reactive_rain() %>% select(datetime,paste(input$well_Input,'_RAIN',sep='')))))
+    rain_predict <- forecast(rain_model, h=num_predicts)
+    r.f2 <- rain_predict$mean
+    
+    seasonsnew <- msts(sel_well_ts, start=1, seasonal.periods = c(yearly))
+    shinyx <- cbind(r.f2)
+    
+    final.forecast <- forecast(model5, xreg=cbind(fourier(seasonsnew,K=1),shinyx,h=input$range_Input))
+    
+    output$predictOutput <- renderPlot({
+      plot(final.forecast)
+    })
+    
   })
+  
+  
   
 }
 # Call the app
