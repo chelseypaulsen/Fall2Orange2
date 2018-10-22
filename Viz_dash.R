@@ -64,7 +64,7 @@ ui <- fluidPage(
       # 'Explore' panels
       conditionalPanel(
         condition = 'input.choice == "Explore"',
-        h4('Timeseries Plot(s) of Selected Well'),
+        h4('Timeseries Plot of Selected Well(s)'),
         plotOutput('timeOutput'),
         br(),
         h4('Well Heights on Selected Date'),
@@ -100,8 +100,8 @@ server <- function(input,output,session){
     full_df %>% filter(year(datetime) == input$year_Input) 
   })
   
-  reactive_date1 <- reactive({
-    as.POSIXct(input$dateRange_Input[1])
+  reactive_TS_date <- reactive({
+    as.POSIXct(input$dateRange_Input)
   })
   
   reactive_date2 <- reactive({
@@ -138,10 +138,8 @@ server <- function(input,output,session){
     else{
       output$timeOutput <- renderPlot({
         p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5) +
-          xlim(reactive_date1(),reactive_date2())
+          xlim(reactive_TS_date())
           #geom_vline(xintercept = reactive_date) #TODO attempts at this failed
-        print(class(reactive_data_well()$datetime))
-        print(class(reactive_date1()))
         # Need better colors
         cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
         
