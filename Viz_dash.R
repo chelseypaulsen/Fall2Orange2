@@ -27,7 +27,8 @@ library(imputeTS)
 library(dplyr)
 library(rlang)
 
-load("C:/Users/Steven/Desktop/Well_Viz.RData")
+load("C:/Users/Steven/Desktop/Well_Viz2.RData")
+
 
 ui <- fluidPage(
   # The UI code
@@ -43,9 +44,15 @@ ui <- fluidPage(
                    condition = 'input.choice == "Explore"',
                    checkboxGroupInput('well_check','Well',
                                       choices=welllist,selected='G852'),
+                   dateRangeInput('dateRange_Input', 'Date Range', 
+                                  start='2016-01-01',
+                                  end='2018-01-01', 
+                                  min='2007-10-01', 
+                                  max='2018-06-12'),
                    selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
                    selectInput('month_Input','Month',''),
-                   selectInput('day_Input','Day','')),
+                   selectInput('day_Input','Day','')
+                   ),
                  # 'Predict' sidebar panels
                  conditionalPanel(
                    condition = 'input.choice == "Predict"',
@@ -57,7 +64,7 @@ ui <- fluidPage(
       # 'Explore' panels
       conditionalPanel(
         condition = 'input.choice == "Explore"',
-        h4('Timeseries Plot of Selected Well'),
+        h4('Timeseries Plot(s) of Selected Well'),
         plotOutput('timeOutput'),
         br(),
         h4('Well Heights on Selected Date'),
@@ -79,6 +86,7 @@ ui <- fluidPage(
 
 server <- function(input,output,session){
   
+  
   reactive_data_well <- reactive({
     full_df %>% select(datetime,input$well_check) %>% gather(well, depth, -datetime)
   })
@@ -91,6 +99,15 @@ server <- function(input,output,session){
   reactive_data_year <- reactive({
     full_df %>% filter(year(datetime) == input$year_Input) 
   })
+  
+  reactive_date1 <- reactive({
+    as.POSIXct(input$dateRange_Input[1])
+  })
+  
+  reactive_date2 <- reactive({
+    as.POSIXct(input$dateRange_Input[2])
+  })
+  
   # Need observe function to make the dropdown menu option reactive
   observe({
     updateSelectInput(session,'month_Input',
@@ -119,11 +136,12 @@ server <- function(input,output,session){
       })
     }
     else{
-      # Below the plot iterates over however many wells are selected and adds them to the graph
       output$timeOutput <- renderPlot({
-        p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5)  
+        p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5) +
+          xlim(reactive_date1(),reactive_date2())
           #geom_vline(xintercept = reactive_date) #TODO attempts at this failed
-        
+        print(class(reactive_data_well()$datetime))
+        print(class(reactive_date1()))
         # Need better colors
         cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
         
