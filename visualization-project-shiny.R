@@ -25,6 +25,8 @@ library(dplyr)
 #install.packages('rlang')
 #install.packages(c('stringi'))
 library(rlang)
+#install.packages('shinydashboard')
+library(shinydashboard)
 #install.packages(c('shiny','ggplot2','dplyr','tidyverse','readxl','forecast','haven','fma','expsmooth','lubridate','caschrono','imputeTS'))
 # Set up the working directory and initialize the well list
 
@@ -257,14 +259,17 @@ full_df %>% select(datetime,G852,G852_Forecast) %>% filter(is.na(!!as.symbol('G8
 # Below is the shiny app code #
 ###############################
 
-ui <- fluidPage(
+ui <- dashboardPage(
   # The UI code
-  titlePanel('South Florida Well Visualization Dashboard'),
+  dashboardHeader(
+  title='South Florida Well Visualization Dashboard'),
   
   # Set up the conditional panels that are dependent on the user's first selection
-  
-  sidebarLayout(
-    sidebarPanel('Options',
+  dashboardSidebar(
+    sidebarMenu('Options',
+                menuItem('Explore', tabName='explore', icon=icon('compass')),
+                menuItem('Predict', tabName='predict', icon=icon('bullseye')
+                ),
                  selectInput('choice','What Do You Want to Do?', c('Explore','Predict'), selected='Explore'),
                  # 'Explor' sidebar panels
                  conditionalPanel(
@@ -285,7 +290,8 @@ ui <- fluidPage(
                    selectInput('well_Input','Well',welllist,selected='G852'),
                    sliderInput('range_Input','Hours Predicted',0,168,c(1))
                  )
-                ),
+                )),
+  dashboardBody(
     mainPanel(
       # 'Explore' panels
       conditionalPanel(
@@ -304,9 +310,9 @@ ui <- fluidPage(
         br(),
         h4('Rain Measurements'),
         plotOutput('rainOutput')),
-      br())
+      br()))
     )
-)
+
 
 # Below is the server code for shiny
 
@@ -338,6 +344,11 @@ server <- function(input,output,session){
     as.POSIXct(input$dateRange_Input[2])
   })
   # Need observe function to make the dropdown menu option reactive
+  # observe({
+  #   updateDateRangeInput(session,'dateRange_Input',
+  #                        start=min(reactive_data_well()$datetime),
+  #                        end=max(reactive_data_well()$datetime))
+  # })
   observe({
     updateSelectInput(session,'month_Input',
                       choices=unique(month((reactive_data_year())$datetime)))
@@ -413,9 +424,6 @@ server <- function(input,output,session){
         labs(title='Rainfall for Selected Well',x='Year',y='Rainfall (ft)')
     })
 
-    output$predictOutput <- renderPlot({
-      
-    })
   
   })
   
@@ -429,7 +437,7 @@ server <- function(input,output,session){
    
     
     output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
-      geom_line() +
+      geom_line(color='red') +
       geom_line(aes_string(y=input$well_Input)) +
       scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input))))
     })
