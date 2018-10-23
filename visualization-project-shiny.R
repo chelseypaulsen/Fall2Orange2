@@ -248,9 +248,11 @@ head(full_df)
 
 
 # to save time on the above steps. Be careful to not save it to the Git repository. That'll eventually take up a lot of space.
-save(full_df, welllist, file="Well_Viz2.RData") # need to add model to this save effort
-load("C:/Users/Steven/Desktop/Well_Viz2.RData")
+save(full_df, welllist, file="Well_Viz_Full.RData") # need to add model to this save effort
+load("C:/Users/johnb/OneDrive/Document/MSA/Fall 2/Well Data/Well_Viz_Full.RData")
 
+
+full_df %>% select(datetime,G852,G852_Forecast) %>% filter(is.na(!!as.symbol('G852')))
 ###############################
 # Below is the shiny app code #
 ###############################
@@ -356,7 +358,8 @@ server <- function(input,output,session){
       #TODO attempts at this failed: +geom_vline(xintercept = ) 
     
       # Need better colors
-      cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+      cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
+                      '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
     
       p <- p + theme(legend.position='right') +
       labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
@@ -388,14 +391,35 @@ server <- function(input,output,session){
   })
   
   observe({
+    reactive_rain <- reactive({full_df %>% select(datetime,paste(input$well_Input,'_RAIN',sep=''))})
     
-    sel_range <- input$range_Input
+    output$rainOutput <- renderPlot({
+      ggplot(reactive_rain(), aes_string(x='datetime',y=paste(input$well_Input,'_RAIN',sep=''))) +
+        geom_line() +
+        labs(title='Rainfall for Selected Well',x='Year',y='Rainfall (ft)')
+    })
 
     output$predictOutput <- renderPlot({
       
     })
   
+  })
+  
+  observe({
+    vars <- c('_Forecast','_Up80','_Up95','_Lo80','_Lo95')
     
+    wellchoice <- input$well_Input
+    # need to use the as.symbol function to make the string into a symbol so the filter function works
+    reactive_predict <- reactive({full_df %>% select(datetime,wellchoice,paste(wellchoice,vars,sep='')) %>%
+        filter(!is.na(!!as.symbol(wellchoice)) | !is.na(!!as.symbol(paste(wellchoice,'_Forecast',sep=''))))})
+   
+    
+    output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
+      geom_line() +
+      geom_line(aes_string(y=input$well_Input)) +
+      scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input))))
+    })
+  })
   
   
   
