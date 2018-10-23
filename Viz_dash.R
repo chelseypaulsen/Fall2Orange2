@@ -27,7 +27,8 @@ library(imputeTS)
 library(dplyr)
 library(rlang)
 
-load("C:/Users/Steven/Desktop/Well_Viz.RData")
+#load("C:/Users/Steven/Desktop/Well_Viz.RData")
+load('C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/Well_Viz2.RData')
 
 ui <- fluidPage(
   # The UI code
