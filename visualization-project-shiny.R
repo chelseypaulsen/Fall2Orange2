@@ -271,6 +271,11 @@ ui <- fluidPage(
                    condition = 'input.choice == "Explore"',
                     checkboxGroupInput('well_check','Well',
                                        choices=welllist,selected='G852'),
+                    dateRangeInput('dateRange_Input', 'Date Range', 
+                                  start='2016-01-01',
+                                  end='2018-01-01', 
+                                  min='2007-10-01', 
+                                  max='2018-06-12'),
                     selectInput('year_Input','Year',unique(year(full_df$datetime)),selected='2009'),
                     selectInput('month_Input','Month',''),
                     selectInput('day_Input','Day','')),
@@ -324,6 +329,14 @@ server <- function(input,output,session){
   reactive_data_year <- reactive({
     full_df %>% filter(year(datetime) == input$year_Input) 
   })
+  
+  reactive_TS_date <- reactive({
+    as.POSIXct(input$dateRange_Input)
+  })
+  
+  reactive_date2 <- reactive({
+    as.POSIXct(input$dateRange_Input[2])
+  })
   # Need observe function to make the dropdown menu option reactive
   observe({
     updateSelectInput(session,'month_Input',
@@ -354,7 +367,8 @@ server <- function(input,output,session){
     else{
    # Below the plot iterates over however many wells are selected and adds them to the graph
       output$timeOutput <- renderPlot({
-      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5)
+      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5) +
+        xlim(reactive_TS_date())
       #TODO attempts at this failed: +geom_vline(xintercept = ) 
     
       # Need better colors
