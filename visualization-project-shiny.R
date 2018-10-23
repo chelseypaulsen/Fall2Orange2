@@ -377,8 +377,21 @@ server <- function(input,output,session){
     }
     else{
    # Below the plot iterates over however many wells are selected and adds them to the graph
+      alphas <- c(1,0.7,0.5,0.3)
+      if(length(input$well_check) == 1){
+        a2 <- alphas[1]
+      }
+      else if(length(input$well_check) < 5){
+        a2 <- alphas[2]
+      }
+      else if(length(input$well_check) < 9){
+        a2 <- alphas[3]
+      }
+      else{
+        a2 <- alphas[4]
+      }
       output$timeOutput <- renderPlot({
-      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=0.5) +
+      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=a2) +
         xlim(reactive_TS_date())
       #TODO attempts at this failed: +geom_vline(xintercept = ) 
     
@@ -438,6 +451,7 @@ server <- function(input,output,session){
     
     output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
       geom_line(color='red') +
+      geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime)) +
       geom_line(aes_string(y=input$well_Input)) +
       scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input))))
     })
