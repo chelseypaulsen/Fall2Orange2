@@ -1,3 +1,7 @@
+####################################
+##### BUILDING DF OF ALL WELLS  ####
+####################################
+
 rm(list=ls())
 
 library(shiny)
@@ -109,6 +113,9 @@ end_df = data.frame(names = wells,
 #   return(final_well)
 # }
 
+####################################
+##### BUILDING DF OF ALL WELLS  ####
+####################################
 # Read the excel files in and clean them
 
 for (well in wells){
@@ -320,6 +327,10 @@ ui <- dashboardPage(
 
 # Below is the server code for shiny
 
+
+########################
+##### Shiny Server #####
+########################
 server <- function(input,output,session){
   
   reactive_data_well <- reactive({
@@ -464,5 +475,5 @@ server <- function(input,output,session){
   
   
 }
-# Call the app
+########## Call the app ##########
 shinyApp(ui=ui, server=server)
