@@ -291,7 +291,9 @@ ui <- dashboardPage(
                    #condition = 'input.choice == "Predict"',
                    condition = 'input.menu1 == "predict"',
                    selectInput('well_Input','Well',welllist,selected='G852'),
-                   numericInput('range_Input','Hours Predicted (max. 168)',69,0,168,1)
+                   numericInput('range_Input','Hours Predicted (max. 168)',69,0,168,1),
+                   radioButtons('decomp_Input','Effects',choices=c('Rain','Seasonal'),selected='Rain'),
+                   dateInput('start_date','Initial Plot Date',value=NULL,min=NULL,max=NULL)
                  )
                 )),
   dashboardBody(
@@ -309,8 +311,16 @@ ui <- dashboardPage(
                 fluidRow(
                   box(title='Forecast for Selected Well',
                          plotOutput('predictOutput'), width=12),
-                  box(title='Rain Measurements for Selected Well',
-                         plotOutput('rainOutput'), width=12)
+                  conditionalPanel(
+                    condition = 'input.decomp_Input == "Rain"',
+                    box(title='Rain Influence on Predictions',
+                        plotOutput('rainefctOutput'),width=12)
+                  ),
+                  conditionalPanel(
+                    condition = 'input.decomp_Input == "Seasonal"',
+                    box(title='Seasonal Influence on Predictions',
+                        plotOutput('seasefctOutput'),width=12)
+                  )
                 ))
       ))
       # 'Explore' panels
@@ -457,42 +467,62 @@ server <- function(input,output,session){
   })
   
   observe({
-    reactive_rain <- reactive({full_df %>% select(datetime,paste(input$well_Input,'_RAIN',sep=''))})
+  vars <- c('_Forecast','_Up80','_Up95','_Lo80','_Lo95')
+  
+  wellchoice <- input$well_Input
+  
+  
+  # need to use the as.symbol function to make the string into a symbol so the filter function works
+  reactive_predict <- reactive({full_df %>% select(datetime,wellchoice,paste(wellchoice,vars,sep='')) %>%
+      filter(!is.na(!!as.symbol(wellchoice)) | !is.na(!!as.symbol(paste(wellchoice,'_Forecast',sep=''))))})
+  
+  reactive_rain_pred <- reactive({full_df %>% select(datetime,paste(input$well_Input,'_RAIN',sep=''),
+                                                     paste(input$well_Input,'.rain.efct',sep=''),
+                                                     paste(input$well_Input,'.seas.efct',sep=''))})
+  
+  
+  updateDateInput(session,'start_date',
+                    value=(max(reactive_predict()$datetime)-days(14)),
+                    min=(max(reactive_predict()$datetime)-years(1)),
+                    max=(max(reactive_predict()$datetime)-days(14)))
     
-    output$rainOutput <- renderPlot({
-      ggplot(reactive_rain(), aes_string(x='datetime',y=paste(input$well_Input,'_RAIN',sep=''))) +
-        geom_line() +
-        labs(x='Year',y='Rainfall (ft)')
+    # if(input$start_date == ''){
+    #   return()
+    # }
+    # else{
+    
+  print(as.POSIXct(ymd(input$start_date)))
+  output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
+        geom_line(color='#F8766D') +
+        geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime), linetype=2, alpha=0.7) +
+        geom_line(aes_string(y=input$well_Input)) +
+        geom_line(aes_string(y=paste(input$well_Input,'_Up95',sep='')),color='#00BFC4',alpha=0.7) +
+        geom_line(aes_string(y=paste(input$well_Input,'_Lo95',sep='')),color='#00BFC4',alpha=0.7) +
+        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
+        #scale_y_continuous(limits=c(min(reactive_predict() %>% select(input$well_Input)) - 1, max(reactive_predict() %>% select(input$well_Input)) + 1)) +
+        geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='#00BFC4',linetype=2) +
+        geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='#00BFC4',linetype=2) +
+        labs(x='Time',y='Well Elevation (ft)')
     })
-
-  
-  })
-  
-  observe({
-    vars <- c('_Forecast','_Up80','_Up95','_Lo80','_Lo95')
     
-    wellchoice <- input$well_Input
-    # need to use the as.symbol function to make the string into a symbol so the filter function works
-    reactive_predict <- reactive({full_df %>% select(datetime,wellchoice,paste(wellchoice,vars,sep='')) %>%
-        filter(!is.na(!!as.symbol(wellchoice)) | !is.na(!!as.symbol(paste(wellchoice,'_Forecast',sep=''))))})
-   
+    # if(input$start_date == ''){
+    #   return()
+    # }
+    # else{
+    output$rainefctOutput <- renderPlot({
+      ggplot(reactive_rain_pred(), aes(x=datetime)) +
+        geom_line(aes_string(y=paste(input$well_Input,'.rain.efct',sep=''))) +
+        geom_line(aes_string(y=paste(input$well_Input,'_RAIN',sep=''))) +
+        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input))))
+    })
     
-    output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
-      geom_line(color='#F8766D') +
-      geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime), linetype=2, alpha=0.7) +
-      geom_line(aes_string(y=input$well_Input)) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Up95',sep='')),color='#00BFC4',alpha=0.7) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Lo95',sep='')),color='#00BFC4',alpha=0.7) +
-      scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
-      #scale_y_continuous(limits=c(min(reactive_predict() %>% select(input$well_Input)) - 1, max(reactive_predict() %>% select(input$well_Input)) + 1)) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='#00BFC4',linetype=2) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='#00BFC4',linetype=2) +
-      labs(x='Time',y='Well Elevation (ft)')
+    output$seasefctOutput <- renderPlot({
+      ggplot(reactive_rain_pred(), aes(x=datetime)) +
+        geom_line(aes_string(y=paste(input$well_Input,'.seas.efct',sep=''))) +
+        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input))))
     })
   })
-  
-  
-  
 }
+
 # Call the app
 shinyApp(ui=ui, server=server, options=list(height=1080))
