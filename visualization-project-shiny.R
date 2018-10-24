@@ -247,6 +247,7 @@ for (well in wells){
 
 head(full_df)
 
+full_df %>% filter(datetime <= mdy_h('6/13/2018 03') & datetime >= mdy_h('6/12/2018 22'))
 
 
 # to save time on the above steps. Be careful to not save it to the Git repository. That'll eventually take up a lot of space.
@@ -262,18 +263,18 @@ full_df %>% select(datetime,G852,G852_Forecast) %>% filter(is.na(!!as.symbol('G8
 ui <- dashboardPage(
   # The UI code
   dashboardHeader(
-  title='South Florida Well Visualization Dashboard'),
+  title='Options'),
   
   # Set up the conditional panels that are dependent on the user's first selection
   dashboardSidebar(
-    sidebarMenu('Options',
+    sidebarMenu(id='menu1',
                 menuItem('Explore', tabName='explore', icon=icon('compass')),
                 menuItem('Predict', tabName='predict', icon=icon('bullseye')
                 ),
-                 selectInput('choice','What Do You Want to Do?', c('Explore','Predict'), selected='Explore'),
                  # 'Explor' sidebar panels
                  conditionalPanel(
-                   condition = 'input.choice == "Explore"',
+                   #condition = 'input.choice == "Explore"',
+                   condition = 'input.menu1 == "explore"',
                     checkboxGroupInput('well_check','Well',
                                        choices=welllist,selected='G852'),
                     dateRangeInput('dateRange_Input', 'Date Range', 
@@ -286,33 +287,50 @@ ui <- dashboardPage(
                     selectInput('day_Input','Day','')),
                  # 'Predict' sidebar panels
                  conditionalPanel(
-                   condition = 'input.choice == "Predict"',
+                   #condition = 'input.choice == "Predict"',
+                   condition = 'input.menu1 == "predict"',
                    selectInput('well_Input','Well',welllist,selected='G852'),
-                   sliderInput('range_Input','Hours Predicted',0,168,c(1))
+                   sliderInput('range_Input','Hours Predicted',0,168,c(168))
                  )
                 )),
   dashboardBody(
     mainPanel(
+      tabItems(
+        tabItem(tabName='explore',
+                fluidRow(
+                  column(12, title='Timeseries Plot of Selected Well',
+                         plotOutput('timeOutput')),
+                  column(12, title='well Heights on Selected Date',
+                         plotOutput('dateOutput'))
+                )),
+        tabItem(tabName='predict',
+                fluidRow(
+                  column(12, title='Well Prediction for Selected Well and Hours',
+                         plotOutput('predictOutput')),
+                  column(12, title='Rain Measurements',
+                         plotOutput('rainOutput'))
+                ))
+      ))
       # 'Explore' panels
-      conditionalPanel(
-        condition = 'input.choice == "Explore"',
-          h4('Timeseries Plot of Selected Well'),
-          plotOutput('timeOutput'),
-          br(),
-          h4('Well Heights on Selected Date'),
-          plotOutput('dateOutput')),
-      br(),
-      # 'Predict' panels
-      conditionalPanel(
-        condition = 'input.choice == "Predict"',
-        h4('Well Prediction for Selected Well and Hours'),
-        plotOutput('predictOutput'),
-        br(),
-        h4('Rain Measurements'),
-        plotOutput('rainOutput')),
-      br()))
+      # conditionalPanel(
+      #   condition = 'input.choice == "Explore"',
+      #     h4('Timeseries Plot of Selected Well'),
+      #     plotOutput('timeOutput'),
+      #     br(),
+      #     h4('Well Heights on Selected Date'),
+      #     plotOutput('dateOutput')),
+      # br(),
+      # # 'Predict' panels
+      # conditionalPanel(
+      #   condition = 'input.choice == "Predict"',
+      #   h4('Well Prediction for Selected Well and Hours'),
+      #   plotOutput('predictOutput'),
+      #   br(),
+      #   h4('Rain Measurements'),
+      #   plotOutput('rainOutput')),
+      # br()))
     )
-
+)
 
 # Below is the server code for shiny
 
@@ -400,7 +418,7 @@ server <- function(input,output,session){
                       '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
     
       p <- p + theme(legend.position='right') +
-      labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
+      labs(title='Timerseries Plot for Selected Well(s)',y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
       p
   })}
   })
@@ -422,9 +440,9 @@ server <- function(input,output,session){
       output$dateOutput <- renderPlot({
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
-          labs(x='Well',y='Well Elevation (ft)') +
+          labs(title='Well Elevation on Selected Day',x='Well',y='Well Elevation (ft)') +
           guides(fill=F) + geom_text(aes(label=round(depth, digits=2)), vjust=-0.25, size=4) + 
-          scale_color_manual(values=c('blue','red'))}) 
+          scale_fill_manual(values=c('red','blue'))}) 
     }
   })
   
@@ -451,9 +469,14 @@ server <- function(input,output,session){
     
     output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
       geom_line(color='red') +
-      geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime)) +
+      geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime), linetype=2, alpha=0.7) +
       geom_line(aes_string(y=input$well_Input)) +
-      scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input))))
+      geom_line(aes_string(y=paste(input$well_Input,'_Up95',sep='')),color='blue',alpha=0.7) +
+      geom_line(aes_string(y=paste(input$well_Input,'_Lo95',sep='')),color='blue',alpha=0.7) +
+      scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
+      #scale_y_continuous(limits=c(min(reactive_predict() %>% select(input$well_Input)) - 1, max(reactive_predict() %>% select(input$well_Input)) + 1)) +
+      geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='blue',linetype=2) +
+      geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='blue',linetype=2)
     })
   })
   
