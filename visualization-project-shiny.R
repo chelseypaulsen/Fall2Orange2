@@ -441,7 +441,7 @@ server <- function(input,output,session){
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(title='Well Elevation on Selected Day',x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)), vjust=-0.25, size=4) + 
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=4) + 
           scale_fill_manual(values=c('red','blue'))}) 
     }
   })
