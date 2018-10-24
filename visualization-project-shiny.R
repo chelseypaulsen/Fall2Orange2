@@ -408,14 +408,18 @@ server <- function(input,output,session){
       else{
         a2 <- alphas[4]
       }
+      
+     cbbPalette <- c('G852'='#000000','F45'='#a6cee3','F179'='#1f78b4','F319'='#b2df8a','G561_T'='#33a02c',
+                      'G580A'='#fb9a99','G860'='#e31a1c','G1220_T'='#fdbf6f','G1260_T'='#ff7f00',
+                      'G2147_T'='#cab2d6','G2866_T'='#6a3d9a','G3549'='#ffff99','PB1680_T'='#b15928')            
       output$timeOutput <- renderPlot({
       p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=a2) +
         xlim(reactive_TS_date())
       #TODO attempts at this failed: +geom_vline(xintercept = ) 
     
       # Need better colors
-      cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
-                      '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
+      #cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
+      #                '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
     
     
       p <- p + theme(legend.position='right') +
