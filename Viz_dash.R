@@ -27,15 +27,9 @@ library(imputeTS)
 library(dplyr)
 library(rlang)
 
-<<<<<<< HEAD
-#load("C:/Users/Steven/Desktop/Well_Viz.RData")
-load('C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/Well_Viz2.RData')
+load("C:/Users/Steven/Desktop/Well_Viz_Full.RData")
+#load('C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/Well_Viz2.RData')
 
-=======
-  
-load("C:/Users/Steven/Desktop/Well_Viz2.RData")
-
->>>>>>> 959146e3fc7795e1c07c9263a2d5ddfca8addf34
 
 ui <- fluidPage(
   # The UI code

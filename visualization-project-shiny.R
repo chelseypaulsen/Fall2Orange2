@@ -30,8 +30,8 @@ library(shinydashboard)
 #install.packages(c('shiny','ggplot2','dplyr','tidyverse','readxl','forecast','haven','fma','expsmooth','lubridate','caschrono','imputeTS'))
 # Set up the working directory and initialize the well list
 
-data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
-#data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
+#data.dir <- 'C:/Users/johnb/OneDrive/Documents/MSA/Fall 2/Well Data/'
+data.dir <- 'C:/Users/Steven/Documents/MSA/Analytics Foundations/Forecasting/data/Well Data/'
 
 wells <- c('G-852','F-45','F-179','F-319','G-561_T','G-580A','G-860','G-1220_T',
            'G-1260_T','G-2147_T','G-2866_T','G-3549','PB-1680_T')
@@ -197,6 +197,7 @@ for (well in wells){
   }
   
   else{end_dt <- mdy_h(endwell)}
+  date_rng <- c(mdy_h(startwell), end_dt)
   train <- final_well %>% select(datetime,filled,RAIN_FT) %>%
     filter(datetime >= mdy_h(startwell) & datetime <= end_dt)
   # Generating model on training data
@@ -233,12 +234,15 @@ for (well in wells){
   df_results$datetime <- seq(end_dt+hours(1), end_dt+hours(168), by='1 hour')
   final_well <- final_well %>%
     left_join(df_results, by="datetime")
-
+  
+  
   # Rename the column to the appropriate names
   well2 <- gsub('-','',well)
   names <- c('','_RAIN', '_Forecast', '_Up80', '_Up95', '_Lo80', '_Lo95')
   uniq_names <- paste(well2,names,sep="")
   colnames(final_well) <- c("datetime", uniq_names)
+  
+  final_well <- int.seas.add(final_well, well, date_rng)
   
   # Join all the well columns together into one master dataframe
   full_df <- full_df %>% left_join(final_well, by='datetime')
@@ -247,11 +251,10 @@ for (well in wells){
 
 head(full_df)
 
-full_df %>% filter(datetime <= mdy_h('6/13/2018 03') & datetime >= mdy_h('6/12/2018 22'))
 
 
 # to save time on the above steps. Be careful to not save it to the Git repository. That'll eventually take up a lot of space.
-save(full_df, welllist, file="Well_Viz_Full.RData") # need to add model to this save effort
+save(full_df, welllist, file="Well_Viz_10_24.RData") # need to add model to this save effort
 load("C:/Users/johnb/OneDrive/Document/MSA/Fall 2/Well Data/Well_Viz_Full.RData")
 
 
@@ -263,18 +266,18 @@ full_df %>% select(datetime,G852,G852_Forecast) %>% filter(is.na(!!as.symbol('G8
 ui <- dashboardPage(
   # The UI code
   dashboardHeader(
-  title='Options'),
+  title='South Florida Well Visualization Dashboard'),
   
   # Set up the conditional panels that are dependent on the user's first selection
   dashboardSidebar(
-    sidebarMenu(id='menu1',
+    sidebarMenu('Options',
                 menuItem('Explore', tabName='explore', icon=icon('compass')),
                 menuItem('Predict', tabName='predict', icon=icon('bullseye')
                 ),
+                 selectInput('choice','What Do You Want to Do?', c('Explore','Predict'), selected='Explore'),
                  # 'Explor' sidebar panels
                  conditionalPanel(
-                   #condition = 'input.choice == "Explore"',
-                   condition = 'input.menu1 == "explore"',
+                   condition = 'input.choice == "Explore"',
                     checkboxGroupInput('well_check','Well',
                                        choices=welllist,selected='G852'),
                     dateRangeInput('dateRange_Input', 'Date Range', 
@@ -287,50 +290,33 @@ ui <- dashboardPage(
                     selectInput('day_Input','Day','')),
                  # 'Predict' sidebar panels
                  conditionalPanel(
-                   #condition = 'input.choice == "Predict"',
-                   condition = 'input.menu1 == "predict"',
+                   condition = 'input.choice == "Predict"',
                    selectInput('well_Input','Well',welllist,selected='G852'),
-                   sliderInput('range_Input','Hours Predicted',0,168,c(168))
+                   sliderInput('range_Input','Hours Predicted',0,168,c(1))
                  )
                 )),
   dashboardBody(
     mainPanel(
-      tabItems(
-        tabItem(tabName='explore',
-                fluidRow(
-                  column(12, title='Timeseries Plot of Selected Well',
-                         plotOutput('timeOutput')),
-                  column(12, title='well Heights on Selected Date',
-                         plotOutput('dateOutput'))
-                )),
-        tabItem(tabName='predict',
-                fluidRow(
-                  column(12, title='Well Prediction for Selected Well and Hours',
-                         plotOutput('predictOutput')),
-                  column(12, title='Rain Measurements',
-                         plotOutput('rainOutput'))
-                ))
-      ))
       # 'Explore' panels
-      # conditionalPanel(
-      #   condition = 'input.choice == "Explore"',
-      #     h4('Timeseries Plot of Selected Well'),
-      #     plotOutput('timeOutput'),
-      #     br(),
-      #     h4('Well Heights on Selected Date'),
-      #     plotOutput('dateOutput')),
-      # br(),
-      # # 'Predict' panels
-      # conditionalPanel(
-      #   condition = 'input.choice == "Predict"',
-      #   h4('Well Prediction for Selected Well and Hours'),
-      #   plotOutput('predictOutput'),
-      #   br(),
-      #   h4('Rain Measurements'),
-      #   plotOutput('rainOutput')),
-      # br()))
+      conditionalPanel(
+        condition = 'input.choice == "Explore"',
+          h4('Timeseries Plot of Selected Well'),
+          plotOutput('timeOutput'),
+          br(),
+          h4('Well Heights on Selected Date'),
+          plotOutput('dateOutput')),
+      br(),
+      # 'Predict' panels
+      conditionalPanel(
+        condition = 'input.choice == "Predict"',
+        h4('Well Prediction for Selected Well and Hours'),
+        plotOutput('predictOutput'),
+        br(),
+        h4('Rain Measurements'),
+        plotOutput('rainOutput')),
+      br()))
     )
-)
+
 
 # Below is the server code for shiny
 
@@ -408,23 +394,17 @@ server <- function(input,output,session){
       else{
         a2 <- alphas[4]
       }
-      
-     cbbPalette <- c('G852'='#000000','F45'='#a6cee3','F179'='#1f78b4','F319'='#b2df8a','G561_T'='#33a02c',
-                      'G580A'='#fb9a99','G860'='#e31a1c','G1220_T'='#fdbf6f','G1260_T'='#ff7f00',
-                      'G2147_T'='#cab2d6','G2866_T'='#6a3d9a','G3549'='#ffff99','PB1680_T'='#b15928')            
       output$timeOutput <- renderPlot({
       p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=a2) +
         xlim(reactive_TS_date())
       #TODO attempts at this failed: +geom_vline(xintercept = ) 
     
       # Need better colors
-      #cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
-      #                '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
-    
+      cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
+                      '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
     
       p <- p + theme(legend.position='right') +
-      labs(title='Timerseries Plot for Selected Well(s)',y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette) + 
-      guides(color=guide_legend(title='Well'))
+      labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
       p
   })}
   })
@@ -442,15 +422,13 @@ server <- function(input,output,session){
                                       new$sign <- as.factor(reactive_prelim()$depth > 0)
                                       
                                       new})
-      cols = c('TRUE'='#00BFC4','FALSE'='#F8766D')
+      
       output$dateOutput <- renderPlot({
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
-          labs(title='Well Elevation on Selected Day',x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=4) +
-          scale_fill_manual(values=cols)
-          #cale_fill_manual(values=c('red','blue'))
-        }) 
+          labs(x='Well',y='Well Elevation (ft)') +
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2)), vjust=-0.25, size=4) + 
+          scale_color_manual(values=c('blue','red'))}) 
     }
   })
   
@@ -476,16 +454,10 @@ server <- function(input,output,session){
    
     
     output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
-      geom_line(color='#F8766D') +
-      geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime), linetype=2, alpha=0.7) +
+      geom_line(color='red') +
+      geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime)) +
       geom_line(aes_string(y=input$well_Input)) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Up95',sep='')),color='#00BFC4',alpha=0.7) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Lo95',sep='')),color='#00BFC4',alpha=0.7) +
-      scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
-      #scale_y_continuous(limits=c(min(reactive_predict() %>% select(input$well_Input)) - 1, max(reactive_predict() %>% select(input$well_Input)) + 1)) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='#00BFC4',linetype=2) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='#00BFC4',linetype=2) +
-      labs(x='Time',title='Forecast for Selected Well',y='Well Elevation (ft)')
+      scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input))))
     })
   })
   
