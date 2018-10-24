@@ -276,7 +276,7 @@ ui <- dashboardPage(
                    #condition = 'input.choice == "Explore"',
                    condition = 'input.menu1 == "explore"',
                     checkboxGroupInput('well_check','Well',
-                                       choices=welllist,selected='G852'),
+                                       choices=welllist,selected='F45'),
                     dateRangeInput('dateRange_Input', 'Date Range', 
                                   start='2016-01-01',
                                   end='2018-01-01', 
@@ -290,7 +290,7 @@ ui <- dashboardPage(
                    #condition = 'input.choice == "Predict"',
                    condition = 'input.menu1 == "predict"',
                    selectInput('well_Input','Well',welllist,selected='G852'),
-                   sliderInput('range_Input','Hours Predicted',0,168,c(168))
+                   sliderInput('range_Input','Hours Predicted',0,168,c(69))
                  )
                 )),
   dashboardBody(
