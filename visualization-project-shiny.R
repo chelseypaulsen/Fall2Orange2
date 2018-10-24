@@ -264,7 +264,7 @@ full_df %>% select(datetime,G852,G852_Forecast) %>% filter(is.na(!!as.symbol('G8
 ui <- dashboardPage(
   # The UI code
   dashboardHeader(
-  title='Options'),
+    title='Options'),
   
   # Set up the conditional panels that are dependent on the user's first selection
   dashboardSidebar(
@@ -296,17 +296,18 @@ ui <- dashboardPage(
                    dateInput('start_date','Initial Plot Date',value=NULL,min=NULL,max=NULL)
                  )
                 )),
+
   dashboardBody(
     mainPanel(
       tabItems(
         tabItem(tabName='explore',
                 fluidRow(
                   box(title='Timeseries Plot of Selected Well(s)',
-                         plotOutput('timeOutput'), width=12),
+                      plotOutput('timeOutput'), width=12),
                   box(title='Well Elevation on Selected Date',
-                         plotOutput('dateOutput'), width=12)
-                  )
-                ),
+                      plotOutput('dateOutput'), width=12)
+                )
+        ),
         tabItem(tabName='predict',
                 fluidRow(
                   box(title='Forecast for Selected Well',
@@ -321,27 +322,28 @@ ui <- dashboardPage(
                     box(title='Seasonal Influence on Predictions',
                         plotOutput('seasefctOutput'),width=12)
                   )
+
                 ))
       ))
-      # 'Explore' panels
-      # conditionalPanel(
-      #   condition = 'input.choice == "Explore"',
-      #     h4('Timeseries Plot of Selected Well'),
-      #     plotOutput('timeOutput'),
-      #     br(),
-      #     h4('Well Heights on Selected Date'),
-      #     plotOutput('dateOutput')),
-      # br(),
-      # # 'Predict' panels
-      # conditionalPanel(
-      #   condition = 'input.choice == "Predict"',
-      #   h4('Well Prediction for Selected Well and Hours'),
-      #   plotOutput('predictOutput'),
-      #   br(),
-      #   h4('Rain Measurements'),
-      #   plotOutput('rainOutput')),
-      # br()))
-    )
+    # 'Explore' panels
+    # conditionalPanel(
+    #   condition = 'input.choice == "Explore"',
+    #     h4('Timeseries Plot of Selected Well'),
+    #     plotOutput('timeOutput'),
+    #     br(),
+    #     h4('Well Heights on Selected Date'),
+    #     plotOutput('dateOutput')),
+    # br(),
+    # # 'Predict' panels
+    # conditionalPanel(
+    #   condition = 'input.choice == "Predict"',
+    #   h4('Well Prediction for Selected Well and Hours'),
+    #   plotOutput('predictOutput'),
+    #   br(),
+    #   h4('Rain Measurements'),
+    #   plotOutput('rainOutput')),
+    # br()))
+  )
 )
 
 # Below is the server code for shiny
@@ -392,13 +394,13 @@ server <- function(input,output,session){
     }
     else{
       reactive_data_month <- reactive({(full_df %>%
-        filter(year(datetime) == input$year_Input) %>%
-        filter(month(datetime) == input$month_Input))})
-    updateSelectInput(session,'day_Input',
-                      choices=unique(day((reactive_data_month())$datetime)))
-  }
-    })
-# Again use observe to allow the ggplot to have a variable number of lines in it
+                                          filter(year(datetime) == input$year_Input) %>%
+                                          filter(month(datetime) == input$month_Input))})
+      updateSelectInput(session,'day_Input',
+                        choices=unique(day((reactive_data_month())$datetime)))
+    }
+  })
+  # Again use observe to allow the ggplot to have a variable number of lines in it
   observe({
     if(is.null(input$well_check)){
       output$timeOutput <- renderPlot({
@@ -406,7 +408,7 @@ server <- function(input,output,session){
       })
     }
     else{
-   # Below the plot iterates over however many wells are selected and adds them to the graph
+      # Below the plot iterates over however many wells are selected and adds them to the graph
       alphas <- c(1,0.7,0.5,0.3)
       if(length(input$well_check) == 1){
         a2 <- alphas[1]
@@ -421,24 +423,24 @@ server <- function(input,output,session){
         a2 <- alphas[4]
       }
       
-     cbbPalette <- c('G852'='#000000','F45'='#a6cee3','F179'='#1f78b4','F319'='#b2df8a','G561_T'='#33a02c',
+      cbbPalette <- c('G852'='#000000','F45'='#a6cee3','F179'='#1f78b4','F319'='#b2df8a','G561_T'='#33a02c',
                       'G580A'='#fb9a99','G860'='#e31a1c','G1220_T'='#fdbf6f','G1260_T'='#ff7f00',
                       'G2147_T'='#cab2d6','G2866_T'='#6a3d9a','G3549'='#ffff99','PB1680_T'='#b15928')            
       output$timeOutput <- renderPlot({
-      p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=a2) +
-        xlim(reactive_TS_date())
-      #TODO attempts at this failed: +geom_vline(xintercept = ) 
-    
-      # Need better colors
-      #cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
-      #                '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
-    
-    
-      p <- p + theme(legend.position='right') +
-      labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette) + 
-      guides(color=guide_legend(title='Well'))
-      p
-  })}
+        p <- ggplot(reactive_data_well(), aes(x=datetime, y=depth, color=well)) + geom_line(alpha=a2) +
+          xlim(reactive_TS_date())
+        #TODO attempts at this failed: +geom_vline(xintercept = ) 
+        
+        # Need better colors
+        #cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
+        #                '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
+        
+        
+        p <- p + theme(legend.position='right') +
+          labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette) + 
+          guides(color=guide_legend(title='Well'))+theme_minimal()
+        p
+      })}
   })
   # The bar chart is below, need observe because the inputs are reactive to other inputs
   observe({
@@ -447,22 +449,22 @@ server <- function(input,output,session){
     }
     else{
       reactive_prelim <- reactive({(full_df %>% select(datetime, one_of(welllist)) %>% filter(year(datetime) == input$year_Input,month(datetime) == input$month_Input,
-                          day(datetime) == input$day_Input) %>% summarise_all(funs(mean)) %>% select(-datetime) %>%
-                          gather(well, depth))})
+                                                                                              day(datetime) == input$day_Input) %>% summarise_all(funs(mean)) %>% select(-datetime) %>%
+                                      gather(well, depth))})
       
       reactive_data_date <- reactive({new <- reactive_prelim()
-                                      new$sign <- as.factor(reactive_prelim()$depth > 0)
-                                      
-                                      new})
+      new$sign <- as.factor(reactive_prelim()$depth > 0)
+      
+      new})
       cols = c('TRUE'='#00BFC4','FALSE'='#F8766D')
       output$dateOutput <- renderPlot({
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(x='Well',y='Well Elevation (ft)') +
           guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=4) +
-          scale_fill_manual(values=cols)
-          #cale_fill_manual(values=c('red','blue'))
-        }) 
+          scale_fill_manual(values=cols)+theme_minimal()
+        #cale_fill_manual(values=c('red','blue'))
+      }) 
     }
   })
   
@@ -470,6 +472,7 @@ server <- function(input,output,session){
   vars <- c('_Forecast','_Up80','_Up95','_Lo80','_Lo95')
   
   wellchoice <- input$well_Input
+
   
   
   # need to use the as.symbol function to make the string into a symbol so the filter function works
@@ -520,6 +523,7 @@ server <- function(input,output,session){
       ggplot(reactive_rain_pred(), aes(x=datetime)) +
         geom_line(aes_string(y=paste(input$well_Input,'.seas.efct',sep=''))) +
         scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input))))
+
     })
   })
 }
