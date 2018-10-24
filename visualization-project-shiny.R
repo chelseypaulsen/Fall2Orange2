@@ -417,8 +417,10 @@ server <- function(input,output,session){
       cbbPalette <- c('#000000','#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
                       '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928')
     
+    
       p <- p + theme(legend.position='right') +
-      labs(title='Timerseries Plot for Selected Well(s)',y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette)
+      labs(title='Timerseries Plot for Selected Well(s)',y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette) + 
+      guides(color=guide_legend(title='Well'))
       p
   })}
   })
@@ -436,13 +438,15 @@ server <- function(input,output,session){
                                       new$sign <- as.factor(reactive_prelim()$depth > 0)
                                       
                                       new})
-      
+      cols = c('TRUE'='#00BFC4','FALSE'='#F8766D')
       output$dateOutput <- renderPlot({
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(title='Well Elevation on Selected Day',x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=4) + 
-          scale_fill_manual(values=c('red','blue'))}) 
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=4) +
+          scale_fill_manual(values=cols)
+          #cale_fill_manual(values=c('red','blue'))
+        }) 
     }
   })
   
@@ -468,15 +472,16 @@ server <- function(input,output,session){
    
     
     output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
-      geom_line(color='red') +
+      geom_line(color='#F8766D') +
       geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(wellchoice))))$datetime), linetype=2, alpha=0.7) +
       geom_line(aes_string(y=input$well_Input)) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Up95',sep='')),color='blue',alpha=0.7) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Lo95',sep='')),color='blue',alpha=0.7) +
+      geom_line(aes_string(y=paste(input$well_Input,'_Up95',sep='')),color='#00BFC4',alpha=0.7) +
+      geom_line(aes_string(y=paste(input$well_Input,'_Lo95',sep='')),color='#00BFC4',alpha=0.7) +
       scale_x_datetime(limits=c((max(reactive_predict()$datetime) - days(14)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
       #scale_y_continuous(limits=c(min(reactive_predict() %>% select(input$well_Input)) - 1, max(reactive_predict() %>% select(input$well_Input)) + 1)) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='blue',linetype=2) +
-      geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='blue',linetype=2)
+      geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='#00BFC4',linetype=2) +
+      geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='#00BFC4',linetype=2) +
+      labs(x='Time',title='Forecast for Selected Well',y='Well Elevation (ft)')
     })
   })
   
