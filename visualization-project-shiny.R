@@ -293,7 +293,7 @@ ui <- dashboardPage(
                    selectInput('well_Input','Well',welllist,selected='G852'),
                    numericInput('range_Input','Hours Predicted (max. 168)',69,0,168,1),
                    radioButtons('decomp_Input','Effects',choices=c('Rain','Seasonal'),selected='Rain'),
-                   dateInput('start_date','Initial Plot Date',value='2018-01-01',min='2017-11-10',max='2018-02-01')
+                   dateInput('start_date','Initial Plot Date',value='2018-06-01',min='2017-11-10',max='2018-07-01')
                  )
                 )),
 
