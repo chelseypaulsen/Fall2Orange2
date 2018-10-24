@@ -61,58 +61,6 @@ end_df = data.frame(names = wells,
                                '10/1/2007 00','10/1/2007 01','10/10/2007 00','10/1/2007 01','10/1/2007 01','10/1/2007 01'),
                     stringsAsFactors = F)
 
-
-# pred_model5 <- function(final_well, well.2){
-#   # TODO, incoporate and check that this function works in the for loop
-#   
-#   # this function takes in a dataframe of well datetimes,well data, and rain data
-#   # it returns the original dataframe w/ new cols for forecast and confidence intervals
-#   # it also depends on startwell and endwell vectors
-#   # returned df also has new names
-#   
-#   #splitting newly assembled well data for clean model generation
-#   if (well.2 == 'G-852' | well.2 == 'G-1220_T'){end_dt <- max(well_df_clean$datetime)
-#   }
-#   
-#   else{end_dt <- mdy_h(endwell)}
-#   train <- final_well %>%
-#     filter(datetime >= mdy_h(startwell) & datetime <= end_dt)
-#   # Generating model on training data
-#   yearly <- 24*365.25
-#   x.reg <- train$RAIN_FT
-#   seasons <- msts(train$filled, start=1, seasonal.periods = c(yearly))
-#   model5 <- Arima(seasons,order=c(2,0,2), xreg=cbind(fourier(seasons,K=1),x.reg))
-#   
-#   # forecasting across last 168 days
-#   rain.ts <- read.zoo(train$RAIN_FT)
-#   rain.impute <- na.approx(rain.ts)
-#   rain.model <- auto.arima(rain.impute)
-#   rain.preds <- forecast(rain.model, h=168)
-#   newx <- rain.preds$mean # using actual rainfall data, because our rain model is really bad
-#   final.pred=forecast(model5,xreg=cbind(fourier(seasons,K=1),newx),h=168)
-#   
-#   # building df from results
-#   df_results <- as.data.frame(cbind(
-#     final.pred$mean,
-#     final.pred$upper[,1],
-#     final.pred$upper[,2],
-#     final.pred$lower[,1],
-#     final.pred$lower[,2]))
-#   colnames(df_results) <- c('Forecast', 'Upper80', 'Upper95', 'Low80', 'Low95') #probably an unnecessary line
-#   df_results$datetime <- test$datetime
-#   final_well <- final_well %>%
-#     left_join(df_results, by="datetime")
-#   
-#   # Rename the column to the appropriate names
-#   well2 <- gsub('-','',well)
-#   names <- c('','_RAIN', '_Forecast', '_Up80', '_Up95', '_Lo80', '_Lo95')
-#   uniq_names <- paste(well2,names,sep="")
-#   colnames(final_well) <- c("datetime", uniq_names)
-#   
-#   
-#   return(final_well)
-# }
-
 ####################################
 ##### BUILDING DF OF ALL WELLS  ####
 ####################################
@@ -207,6 +155,7 @@ for (well in wells){
   date_rng <- c(mdy_h(startwell), end_dt)
   train <- final_well %>% select(datetime,filled,RAIN_FT) %>%
     filter(datetime >= mdy_h(startwell) & datetime <= end_dt)
+  
   # Generating model on training data
   yearly <- 24*365.25
   x.reg <- train$RAIN_FT
@@ -257,7 +206,6 @@ for (well in wells){
   }
 
 head(full_df)
-
 
 
 # to save time on the above steps. Be careful to not save it to the Git repository. That'll eventually take up a lot of space.
