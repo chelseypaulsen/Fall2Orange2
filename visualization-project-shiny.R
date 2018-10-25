@@ -302,24 +302,24 @@ ui <- dashboardPage(
       tabItems(
         tabItem(tabName='explore',
                 fluidRow(
-                  box(title='Timeseries Plot of Selected Well(s)',
+                  box(#title='Timeseries Plot of Selected Well(s)',
                       plotOutput('timeOutput'), width=12),
-                  box(title='Well Elevation on Selected Date',
+                  box(#title='Well Elevation on Selected Date',
                       plotOutput('dateOutput'), width=12)
                 )
         ),
         tabItem(tabName='predict',
                 fluidRow(
-                  box(title='Forecast for Selected Well',
-                         plotOutput('predictOutput'), width=12),
+                  box(#title='Forecast for Selected Well',
+                      plotOutput('predictOutput'), width=12),
                   conditionalPanel(
                     condition = 'input.decomp_Input == "Rain"',
-                    box(title='Rain Influence on Predictions',
+                    box(#title='Rain Influence on Predictions',
                         plotOutput('rainefctOutput'),width=12)
                   ),
                   conditionalPanel(
                     condition = 'input.decomp_Input == "Seasonal"',
-                    box(title='Seasonal Influence on Predictions',
+                    box(#title='Seasonal Influence on Predictions',
                         plotOutput('seasefctOutput'),width=12)
                   )
 
@@ -438,7 +438,9 @@ server <- function(input,output,session){
         
         p <- p + theme(legend.position='right') +
           labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette) + 
-          guides(color=guide_legend(title='Well'))+theme_minimal()
+          guides(color=guide_legend(title='Well'))+theme_minimal()+ ggtitle("Timeseries Plot of Selected Well(s)")+
+          theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
+                axis.text = element_text(size=12))
         p
       })}
   })
@@ -461,8 +463,10 @@ server <- function(input,output,session){
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=4) +
-          scale_fill_manual(values=cols)+theme_minimal()
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=5) +
+          scale_fill_manual(values=cols)+theme_minimal()+ggtitle("Well Elevation on Selected Date")+
+          theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
+                axis.text = element_text(size=12))
         #cale_fill_manual(values=c('red','blue'))
       }) 
     }
@@ -508,7 +512,9 @@ server <- function(input,output,session){
         #scale_y_continuous(limits=c(min(reactive_predict() %>% select(input$well_Input)) - 1, max(reactive_predict() %>% select(input$well_Input)) + 1)) +
         geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='#00BFC4',linetype=2) +
         geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='#00BFC4',linetype=2) +
-        labs(x='Time',y='Well Elevation (ft)')
+        labs(x='Time',y='Well Elevation (ft)')+ggtitle("Forecast for Selected Well")+theme_minimal()+
+        theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
+              axis.text = element_text(size=12)) 
     })
     
     # if(input$start_date == ''){
@@ -520,14 +526,18 @@ server <- function(input,output,session){
         geom_line(aes_string(y=paste(input$well_Input,'.rain.efct',sep=''))) +
         geom_line(aes_string(y=paste(input$well_Input,'_RAIN',sep=''))) +
         scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input)))) +
-        labs(x='Time',y='Rain Effect')
+        labs(x='Time',y='Rain Effect')+ theme_minimal()+ggtitle("Rain Influence on Predictions")+
+        theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
+              axis.text = element_text(size=12))
     })
     
     output$seasefctOutput <- renderPlot({
       ggplot(reactive_rain_pred(), aes(x=datetime)) +
         geom_line(aes_string(y=paste(input$well_Input,'.seas.efct',sep=''))) +
         scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input)))) +
-        labs(x='Time',y='Seasonal Effect')
+        labs(x='Time',y='Seasonal Effect')+theme_minimal()+ggtitle('Seasonal Influence on Predictions')+
+        theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
+              axis.text = element_text(size=12))
 
     })
   })
