@@ -525,7 +525,7 @@ server <- function(input,output,session){
       ggplot(reactive_rain_pred(), aes(x=datetime)) +
         geom_line(aes_string(y=paste(input$well_Input,'.rain.efct',sep='')), linetype=3, size=1.5) +
         geom_histogram(stat='identity',aes_string(y=paste(input$well_Input,'_RAIN*12',sep='')),fill='#00BFC4') +
-        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input)))) +
+        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
         scale_y_continuous(sec.axis = sec_axis(~.*12, name = "Rainfall (in)\n")) +
         labs(x='Time',y='Rain Effect')+ theme_minimal()+ggtitle("Rain Influence on Predictions")+
         theme(axis.title=element_text(size=20),
@@ -539,7 +539,7 @@ server <- function(input,output,session){
     output$seasefctOutput <- renderPlot({
       ggplot(reactive_rain_pred(), aes(x=datetime)) +
         geom_line(aes_string(y=paste(input$well_Input,'.seas.efct',sep=''))) +
-        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_rain_pred()$datetime) - hours(168-input$range_Input)))) + 
+        scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) + 
         labs(x='Time',y='Seasonal Effect')+theme_minimal()+ggtitle('Seasonal Influence on Predictions')+
         theme(axis.title=element_text(size=20),
               plot.title=element_text(size=28, hjust=0.5),
