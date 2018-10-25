@@ -291,7 +291,7 @@ ui <- dashboardPage(
                    #condition = 'input.choice == "Predict"',
                    condition = 'input.menu1 == "predict"',
                    selectInput('well_Input','Well',welllist,selected='G852'),
-                   numericInput('range_Input','Hours Predicted (max. 168)',69,0,168,1),
+                   numericInput('range_Input','Hours Predicted (max. 168)',68,0,168,1),
                    radioButtons('decomp_Input','Effects',choices=c('Rain','Seasonal'),selected='Rain'),
                    dateInput('start_date','Initial Plot Date',value='2018-06-01',min='2007-10-01',max='2018-07-01')
                  )
@@ -372,9 +372,7 @@ server <- function(input,output,session){
     as.POSIXct(input$dateRange_Input)
   })
   
-  reactive_date2 <- reactive({
-    as.POSIXct(input$dateRange_Input[2])
-  })
+
   # Need observe function to make the dropdown menu option reactive
   # observe({
   #   updateDateRangeInput(session,'dateRange_Input',
@@ -440,7 +438,9 @@ server <- function(input,output,session){
           labs(y='Well Elevation (ft)', x='Year') + scale_color_manual(values=cbbPalette) + 
           guides(color=guide_legend(title='Well'))+theme_minimal()+ ggtitle("Timeseries Plot of Selected Well(s)")+
           theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
-                axis.text = element_text(size=12))
+                axis.text = element_text(size=12), 
+                legend.text=element_text(size=12),
+                legend.title=element_text(size=12))
         p
       })}
   })
@@ -463,7 +463,7 @@ server <- function(input,output,session){
         ggplot(reactive_data_date(), aes(x=well,y=depth,fill=sign)) +
           geom_col() +
           labs(x='Well',y='Well Elevation (ft)') +
-          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, 0, 1)), size=5) +
+          guides(fill=F) + geom_text(aes(label=round(depth, digits=2), vjust = ifelse(depth >= 0, -0.25, 1.25)), size=5) +
           scale_fill_manual(values=cols)+theme_minimal()+ggtitle("Well Elevation on Selected Date")+
           theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
                 axis.text = element_text(size=12))
@@ -501,7 +501,8 @@ server <- function(input,output,session){
     # }
     # else{
     
-  print(input$start_date)
+    
+  # https://stackoverflow.com/questions/17148679/construct-a-manual-legend-for-a-complicated-plot
   output$predictOutput <- renderPlot({ggplot(reactive_predict(), aes_string(x='datetime',y=paste(input$well_Input,'_Forecast',sep=''))) +
         geom_line(color='#F8766D') +
         geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(input$well_Input))))$datetime), linetype=2, alpha=0.7) +
@@ -513,8 +514,11 @@ server <- function(input,output,session){
         geom_line(aes_string(y=paste(input$well_Input,'_Up80',sep='')),color='#00BFC4',linetype=2) +
         geom_line(aes_string(y=paste(input$well_Input,'_Lo80',sep='')),color='#00BFC4',linetype=2) +
         labs(x='Time',y='Well Elevation (ft)')+ggtitle("Forecast for Selected Well")+theme_minimal()+
-        theme(axis.title=element_text(size=20),plot.title=element_text(size=28, hjust=0.5),
-              axis.text = element_text(size=12)) 
+        guides(color = guide_legend(order = 1), lines = guide_legend(order = 2)) +
+        theme(axis.title=element_text(size=20),
+              plot.title=element_text(size=28, hjust=0.5),
+              axis.text = element_text(size=12),
+              plot.margin = unit(c(5,40,5,5),'points'))
     })
     
     # if(input$start_date == ''){
@@ -523,27 +527,31 @@ server <- function(input,output,session){
     # else{
     output$rainefctOutput <- renderPlot({
       ggplot(reactive_rain_pred(), aes(x=datetime)) +
-        geom_line(aes_string(y=paste(input$well_Input,'.rain.efct',sep='')), linetype=3, size=1.5) +
+        geom_line(aes_string(y=paste(input$well_Input,'.rain.efct',sep='')), linetype=5, size=1.5) +
+        geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(input$well_Input))))$datetime), linetype=2, alpha=0.7) +
         geom_histogram(stat='identity',aes_string(y=paste(input$well_Input,'_RAIN*12',sep='')),fill='#00BFC4') +
         scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) +
-        scale_y_continuous(sec.axis = sec_axis(~.*12, name = "Rainfall (in)\n")) +
-        labs(x='Time',y='Rain Effect')+ theme_minimal()+ggtitle("Rain Influence on Predictions")+
+        scale_y_continuous(sec.axis = sec_axis(~.*12, name = "Rainfall (in)")) +
+        labs(x='Time',y='Rain Effect (ft)')+ theme_minimal()+ggtitle("Rain Influence on Predictions")+
         theme(axis.title=element_text(size=20),
               plot.title=element_text(size=28, hjust=0.5),
               axis.text = element_text(size=12), 
               axis.title.y.right = element_text(color = '#00BFC4'),
-              axis.text.y.right = element_text(color ='#00BFC4')
+              axis.text.y.right = element_text(color ='#00BFC4', margin = margin(t = 0, r = 0, b = 0, l = 10)),
+              plot.margin = unit(c(5,5,5,5),'points')
               )
     })
     
     output$seasefctOutput <- renderPlot({
       ggplot(reactive_rain_pred(), aes(x=datetime)) +
         geom_line(aes_string(y=paste(input$well_Input,'.seas.efct',sep=''))) +
+        geom_vline(xintercept=max((reactive_predict() %>% filter(!is.na(!!as.symbol(input$well_Input))))$datetime), linetype=2, alpha=0.7) +
         scale_x_datetime(limits=c(as.POSIXct(ymd(input$start_date)),(max(reactive_predict()$datetime) - hours(168-input$range_Input)))) + 
-        labs(x='Time',y='Seasonal Effect')+theme_minimal()+ggtitle('Seasonal Influence on Predictions')+
+        labs(x='Time',y='Seasonal Effect (ft)')+theme_minimal()+ggtitle('Seasonal Influence on Predictions')+
         theme(axis.title=element_text(size=20),
               plot.title=element_text(size=28, hjust=0.5),
-              axis.text = element_text(size=12)) 
+              axis.text = element_text(size=12),
+              plot.margin = unit(c(5,40,5,5),'points')) 
 
     })
   })
